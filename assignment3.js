@@ -11,6 +11,7 @@ export class Assignment3 extends Scene {
 
         // At the beginning of our program, load one of each of these shape definitions onto the GPU.
         this.shapes = {
+            single_arrow: new defs.Single_Arrow(),
             square: new defs.Square(),
             torus: new defs.Torus(40, 40),
             torus2: new defs.Torus(3, 15),
@@ -111,8 +112,8 @@ export class Assignment3 extends Scene {
         const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
 
 
-        let sun_light_position = vec4(5, 2, 0, 1);
-        program_state.lights = [new Light(sun_light_position, color(1, 1, 1, 1), 3)];
+        let light_position = vec4(5, 2, 0, 1);
+        program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 3)];
 
         let field_transform = Mat4.identity();
         field_transform = field_transform
@@ -224,6 +225,8 @@ export class Assignment3 extends Scene {
                 this.thrust_position['target'][1], this.thrust_position['target'][2]));
 
         this.shapes.circle.draw(context, program_state, target_transform, this.materials.target);
+
+        this.shapes.single_arrow.draw(context, program_state, Mat4.identity(), this.materials.target);
     }
 }
 
