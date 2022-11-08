@@ -19,6 +19,7 @@ export class Assignment3 extends Scene {
             sphere3: new defs.Subdivision_Sphere(3),
             sphere4: new defs.Subdivision_Sphere(4),
             circle: new defs.Regular_2D_Polygon(1, 15),
+            cylinder: new defs.Cylindrical_Tube(10, 20),
         };
 
         this.thrust = vec3(0, 0, 0);
@@ -37,6 +38,8 @@ export class Assignment3 extends Scene {
                 {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#FFFFFF")}),
             field: new Material(new defs.Phong_Shader(),
                 {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#00FF00")}),
+            goal_post: new Material(new defs.Phong_Shader(),
+                {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#FFFFFF")}),
         }
 
         this.initial_camera_location = Mat4.look_at(vec3(0, 10, 20), vec3(0, 0, 0), vec3(0, 1, 0));
@@ -72,12 +75,53 @@ export class Assignment3 extends Scene {
         let sun_light_position = vec4(5, 2, 0, 1);
         program_state.lights = [new Light(sun_light_position, color(1, 1, 1, 1), 3)];
 
-        let field_transform = Mat4.identity()
+        let field_transform = Mat4.identity();
         field_transform = field_transform
             .times(Mat4.scale(10,10,10))
             .times(Mat4.rotation(Math.PI/2, 1, 0, 0));
 
         this.shapes.square.draw(context, program_state, field_transform, this.materials.field);
+
+        // GOAL POST
+        let left_goal_post_transform = Mat4.identity();
+        left_goal_post_transform = left_goal_post_transform
+            .times(Mat4.translation(-7, 2.5, -7))
+            .times(Mat4.scale(0.3, 5, 0.3))
+            .times(Mat4.rotation(Math.PI/2, 1, 0, 0));
+        this.shapes.cylinder.draw(context, program_state, left_goal_post_transform, this.materials.goal_post);
+
+
+        let right_goal_post_transform = Mat4.identity();
+        right_goal_post_transform = right_goal_post_transform
+            .times(Mat4.translation(7, 2.5, -7))
+            .times(Mat4.scale(0.3, 5, 0.3))
+            .times(Mat4.rotation(Math.PI/2, 1, 0, 0));
+        this.shapes.cylinder.draw(context, program_state, right_goal_post_transform, this.materials.goal_post);
+
+
+        let top_goal_post_transform = Mat4.identity();
+        top_goal_post_transform = top_goal_post_transform
+            .times(Mat4.translation(0, 5, -7))
+            .times(Mat4.scale(14, 0.3, 0.3))
+            .times(Mat4.rotation(Math.PI/2, 0, 1, 0));
+        this.shapes.cylinder.draw(context, program_state, top_goal_post_transform, this.materials.goal_post);
+
+
+        let left_tilt_post_transform = Mat4.identity();
+        left_tilt_post_transform = left_tilt_post_transform
+            .times(Mat4.translation(-7, 2.5, -8.5))
+            .times(Mat4.rotation(Math.PI/3, -1, 0, 0))
+            .times(Mat4.scale(0.3, 0.3, 5.5));
+        this.shapes.cylinder.draw(context, program_state, left_tilt_post_transform, this.materials.goal_post);
+
+        let right_tilt_post_transform = Mat4.identity();
+        right_tilt_post_transform = right_tilt_post_transform
+            .times(Mat4.translation(7, 2.5, -8.5))
+            .times(Mat4.rotation(Math.PI/3, -1, 0, 0))
+            .times(Mat4.scale(0.3, 0.3, 5.5));
+        this.shapes.cylinder.draw(context, program_state, right_tilt_post_transform, this.materials.goal_post);
+
+
 
         let ball_transform = Mat4.identity();
         let ball_radius = 0.8;
