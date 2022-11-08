@@ -445,7 +445,6 @@ const Single_Arrow = defs.Single_Arrow =
         }
 
         drawOneAxis(transform, tex) {
-            // Use a different texture coordinate range for each of the three axes, so they show up differently.
             Closed_Cone.insert_transformed_copy_into(this, [4, 10, tex], transform.times(Mat4.translation(0, 0, 2)).times(Mat4.scale(.25, .25, .25)));
             Cylindrical_Tube.insert_transformed_copy_into(this, [7, 7, tex], transform.times(Mat4.translation(0, 0, 1)).times(Mat4.scale(.1, .1, 2)));
         }

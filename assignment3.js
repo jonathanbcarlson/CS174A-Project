@@ -25,19 +25,19 @@ export class Assignment3 extends Scene {
 
         this.thrust = {
             'target': vec3(0, 0, 0),
-            'ball': vec4(0, 0, 0),
+            'ball_arrow': vec4(0, 0, 0),
         }
         this.thrust_position = {
             'target': vec3(0, 0, 0),
-            'ball': vec3(0, 0, 0),
+            'ball_arrow': vec3(0, 0, 0),
         };
         this.next_direction = {
             'target': null,
-            'ball': null
+            'ball_arrow': null
         };
         this.object_moved = {
             'target': false,
-            'ball': false
+            'ball_arrow': false
         };
 
         this.direction_to_axis = {
@@ -57,6 +57,8 @@ export class Assignment3 extends Scene {
                 {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#FFFFFF")}),
             target: new Material(new defs.Phong_Shader(),
                 {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#FF0000")}),
+            ball_arrow: new Material(new defs.Phong_Shader(),
+                {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#FF00FF")}),
             field: new Material(new defs.Phong_Shader(),
                 {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#00FF00")}),
             goal_post: new Material(new defs.Phong_Shader(),
@@ -78,14 +80,14 @@ export class Assignment3 extends Scene {
 
         // Draw the scene's buttons, setup their actions and keyboard shortcuts, and monitor live measurements.
         // use ArrowUp/Down/Left/Right for arrow keys found from https://stackoverflow.com/a/44213036
-        this.key_triggered_button("Move ball Up", ["ArrowUp"],
-            () => button_cb('ball', -1, 'forward_backward'));
-        this.key_triggered_button("Move ball Down", ["ArrowDown"],
-            () => button_cb('ball', 1, 'forward_backward'));
-        this.key_triggered_button("Move ball Left", ["ArrowLeft"],
-            () => button_cb('ball', -1, 'left_right'));
-        this.key_triggered_button("Move ball Right", ["ArrowRight"],
-            () => button_cb('ball', 1, 'left_right'));
+        this.key_triggered_button("Move arrow Up", ["ArrowUp"],
+            () => button_cb('ball_arrow', -1, 'forward_backward'));
+        this.key_triggered_button("Move arrow Down", ["ArrowDown"],
+            () => button_cb('ball_arrow', 1, 'forward_backward'));
+        this.key_triggered_button("Move arrow Left", ["ArrowLeft"],
+            () => button_cb('ball_arrow', 1, 'left_right'));
+        this.key_triggered_button("Move arrow Right", ["ArrowRight"],
+            () => button_cb('ball_arrow', -1, 'left_right'));
 
         this.key_triggered_button("Move target Up", ["i"],
             () => button_cb('target', 1, 'up_down'));
@@ -182,14 +184,16 @@ export class Assignment3 extends Scene {
             this.object_moved[object_type] = false;
         }
 
-        if (this.object_moved['ball']) {
-            updateThrustPosition('ball');
+        if (this.object_moved['ball_arrow']) {
+            updateThrustPosition('ball_arrow');
         }
 
         if (this.object_moved['target']) {
             updateThrustPosition('target');
         }
 
+        let ball_radius = 0.8;
+        /*
         let target_pos = this.thrust_position['target'];
         let ball_pos = this.thrust_position['ball'];
         let ball_pos_x = ball_pos[0];
@@ -204,7 +208,6 @@ export class Assignment3 extends Scene {
         }
 
         let ball_transform = Mat4.identity();
-        let ball_radius = 0.8;
         ball_transform = ball_transform
             .times(Mat4.translation(0,0.9,8))
             .times(Mat4.scale(ball_radius, ball_radius, ball_radius));
@@ -212,8 +215,8 @@ export class Assignment3 extends Scene {
         ball_transform = ball_transform
             .times(Mat4.translation(this.thrust_position['ball'][0],
                 this.thrust_position['ball'][1], this.thrust_position['ball'][2]));
-
         this.shapes.sphere4.draw(context, program_state, ball_transform, this.materials.ball);
+        */
 
         let target_transform = Mat4.identity();
         target_transform = target_transform
@@ -226,7 +229,21 @@ export class Assignment3 extends Scene {
 
         this.shapes.circle.draw(context, program_state, target_transform, this.materials.target);
 
-        this.shapes.single_arrow.draw(context, program_state, Mat4.identity(), this.materials.target);
+        let ball_arrow = Mat4.identity();
+        let ball_arrow_scale = 2;
+        // TODO: determine if user can move the arrow left and right or if it should stay at the center
+        ball_arrow = ball_arrow
+            .times(Mat4.translation(0, 0, 8))
+            .times(Mat4.scale(ball_arrow_scale,ball_arrow_scale, ball_arrow_scale));
+        // FIXME: if user holds down in a direction for too long then because we're passing this to sin
+        //        then the arrow starts oscillating back and forth.
+        //        This could be cool to randomize the arrow location or have the user press SPACE to stop
+        //        the arrow at a random location.
+        ball_arrow = ball_arrow
+            .times(Mat4.rotation(Math.sin(this.thrust_position['ball_arrow'][2]*Math.PI/20), 1, 0, 0))
+            .times(Mat4.rotation(Math.sin(this.thrust_position['ball_arrow'][0]*Math.PI/20), 0, 0, 1));
+
+        this.shapes.single_arrow.draw(context, program_state, ball_arrow, this.materials.ball_arrow);
     }
 }
 
