@@ -76,14 +76,15 @@ export class Assignment3 extends Scene {
         };
 
         // Draw the scene's buttons, setup their actions and keyboard shortcuts, and monitor live measurements.
-        // this.key_triggered_button("Move ball Up", ["i"],
-        //     () => button_cb('ball', -1, 'forward_backward'));
-        // this.key_triggered_button("Move ball Down", ["k"],
-        //     () => button_cb('ball', 1, 'forward_backward'));
-        // this.key_triggered_button("Move ball Left", ["j"],
-        //     () => button_cb('ball', -1, 'left_right'));
-        // this.key_triggered_button("Move ball Right", ["l"],
-        //     () => button_cb('ball', 1, 'left_right'));
+        // use ArrowUp/Down/Left/Right for arrow keys found from https://stackoverflow.com/a/44213036
+        this.key_triggered_button("Move ball Up", ["ArrowUp"],
+            () => button_cb('ball', -1, 'forward_backward'));
+        this.key_triggered_button("Move ball Down", ["ArrowDown"],
+            () => button_cb('ball', 1, 'forward_backward'));
+        this.key_triggered_button("Move ball Left", ["ArrowLeft"],
+            () => button_cb('ball', -1, 'left_right'));
+        this.key_triggered_button("Move ball Right", ["ArrowRight"],
+            () => button_cb('ball', 1, 'left_right'));
 
         this.key_triggered_button("Move target Up", ["i"],
             () => button_cb('target', 1, 'up_down'));
@@ -162,7 +163,6 @@ export class Assignment3 extends Scene {
 
         let updateThrustPosition = (object_type) => {
             let next_dir = this.next_direction[object_type]
-            console.log('moving ', object_type, 'towards ', next_dir);
             // reset others if equal to avoid diagonal movement
             if (next_dir === 'left_right') {
                 this.thrust[1] = 0;
@@ -188,12 +188,29 @@ export class Assignment3 extends Scene {
         if (this.object_moved['target']) {
             updateThrustPosition('target');
         }
-        
+
+        let target_pos = this.thrust_position['target'];
+        let ball_pos = this.thrust_position['ball'];
+        let ball_pos_x = ball_pos[0];
+        let target_pos_x = target_pos[0];
+        // visually the circle intersects ball if it's +/- 1 away
+        let intersects_on_x_axis = (ball_pos_x === target_pos_x
+            || ball_pos_x === target_pos_x + 1
+            || ball_pos_x === target_pos_x - 1);
+        // y is -18 since that's where the goal posts are
+        if (intersects_on_x_axis && ball_pos[2] === -18) {
+            // TODO: increment a score or something
+        }
+
         let ball_transform = Mat4.identity();
         let ball_radius = 0.8;
         ball_transform = ball_transform
             .times(Mat4.translation(0,0.9,8))
             .times(Mat4.scale(ball_radius, ball_radius, ball_radius));
+
+        ball_transform = ball_transform
+            .times(Mat4.translation(this.thrust_position['ball'][0],
+                this.thrust_position['ball'][1], this.thrust_position['ball'][2]));
 
         this.shapes.sphere4.draw(context, program_state, ball_transform, this.materials.ball);
 
