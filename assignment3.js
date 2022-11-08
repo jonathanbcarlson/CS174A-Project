@@ -11,6 +11,7 @@ export class Assignment3 extends Scene {
 
         // At the beginning of our program, load one of each of these shape definitions onto the GPU.
         this.shapes = {
+            square: new defs.Square(),
             torus: new defs.Torus(40, 40),
             torus2: new defs.Torus(3, 15),
             sphere1: new (defs.Subdivision_Sphere.prototype.make_flat_shaded_version())(1),
@@ -29,22 +30,10 @@ export class Assignment3 extends Scene {
             test2: new Material(new Gouraud_Shader(),
                 {ambient: .4, diffusivity: .6, color: hex_color("#992828")}),
             ring: new Material(new Ring_Shader()),
-            sun: new Material(new defs.Phong_Shader(),
-                {ambient: 1, diffusivity: 0, specularity: 0}),
-            planet1: new Material(new defs.Phong_Shader(),
-                {diffusivity: 1, specularity: 0, color: hex_color("#808080")}),
-            planet2_phong: new Material(new defs.Phong_Shader(),
-                {diffusivity: 0.3, specularity: 1, color: hex_color("#80FFFF")}),
-            planet2_gouraud: new Material(new Gouraud_Shader(),
-                {diffusivity: 0.3, specularity: 1, color: hex_color("#80FFFF")}),
-            planet3: new Material(new defs.Phong_Shader(),
-                {diffusivity: 1, specularity: 1, color: hex_color("#B08040")}),
-            planet3_ring: new Material(new Ring_Shader(),
-                {ambient: 1, specularity: 0, diffusivity: 0, color: hex_color("#B08040")}),
-            planet4: new Material(new defs.Phong_Shader(),
-                {specularity: 1, color: hex_color("#185fd9")}),
-            planet4_moon: new Material(new defs.Phong_Shader(),
-                {ambient: 0, diffusivity: 1, specularity: 1, color: hex_color("#FF00FF")})
+            ball: new Material(new defs.Phong_Shader(),
+                {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#FFFFFF")}),
+            field: new Material(new defs.Phong_Shader(),
+                {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#00FF00")}),
         }
 
         this.initial_camera_location = Mat4.look_at(vec3(0, 10, 20), vec3(0, 0, 0), vec3(0, 1, 0));
@@ -75,94 +64,27 @@ export class Assignment3 extends Scene {
         program_state.projection_transform = Mat4.perspective(
             Math.PI / 4, context.width / context.height, .1, 1000);
 
-        if (this.attached() !== null) {
-            let blending_factor = 0.1
-            let desired = Mat4.inverse(this.attached()
-                .times(Mat4.translation(0, 0, 5)));
-            desired = desired.map(
-                (x, i) =>
-                    Vector.from(program_state.camera_inverse[i]).mix(x, blending_factor))
-            program_state.set_camera(desired);
-        }
-
         const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
 
-        let sun_transform = Mat4.identity();
-
-        // 10 seconds for period so 1/5*Pi so that it takes 5 seconds to go from 0 to pi
-        let sun_scale_frequency = 1/5 * Math.PI;
-        // half the time cos is -1
-        let sun_radius = Math.cos(sun_scale_frequency*t) + 2;
 
         let sun_light_position = vec4(5, 2, 0, 1);
-        program_state.lights = [new Light(sun_light_position, color(1, 1, 1, 1), 10**(sun_radius))];
-        // sun
-        sun_transform = sun_transform.times(Mat4.scale(sun_radius, sun_radius, sun_radius));
-        let sun_material = this.materials.sun;
-        let red_level = Math.cos(sun_scale_frequency*t) + 1;
-        sun_material.color = tiny.Color.create_from_float(1, red_level, red_level, 1);
-        this.shapes.sphere4.draw(context, program_state, sun_transform, sun_material);
+        program_state.lights = [new Light(sun_light_position, color(1, 1, 1, 1), 3)];
 
-        // planet 1
-        let planet1_transform = Mat4.identity();
-        let planet1_x_position = 5;
-        planet1_transform = planet1_transform
-            .times(Mat4.rotation(t/2+25, 0, 1, 0))
-            .times(Mat4.translation(planet1_x_position,0,0));
-        this.shapes.sphere2.draw(context, program_state, planet1_transform, this.materials.planet1);
-        this.planet_1 = planet1_transform;
+        let field_transform = Mat4.identity()
+        field_transform = field_transform
+            .times(Mat4.scale(10,10,10))
+            .times(Mat4.rotation(Math.PI/2, 1, 0, 0));
 
-        // planet 2
-        let planet2_x_position = planet1_x_position + 3;
-        let planet2_transform = Mat4.identity()
-            .times(Mat4.rotation(t/3+15, 0, 1, 0))
-            .times(Mat4.translation(planet2_x_position, 0, 0));
-        if (Math.floor(t % 2) === 0) {
-            // apply Phong shading every even second
-            this.shapes.sphere3.draw(context, program_state, planet2_transform, this.materials.planet2_phong);
-        } else {
-            // apply Gouraud shading every odd second
-            this.shapes.sphere3.draw(context, program_state, planet2_transform, this.materials.planet2_gouraud);
-        }
+        this.shapes.square.draw(context, program_state, field_transform, this.materials.field);
 
-        this.planet_2 = planet2_transform;
+        let ball_transform = Mat4.identity();
+        let ball_radius = 0.8;
+        ball_transform = ball_transform
+            .times(Mat4.translation(0,0.9,8))
+            .times(Mat4.scale(ball_radius, ball_radius, ball_radius));
 
-        // planet 3
-        let planet_3_x_position = planet2_x_position + 3;
-        let planet3_transform = Mat4.identity()
-            .times(Mat4.rotation(t/4+10, 0, 1, 0))
-            .times(Mat4.translation(planet_3_x_position, 0, 0));
-        this.shapes.sphere4.draw(context, program_state, planet3_transform, this.materials.planet3);
-        let planet3_ring_radius = 3;
-        let planet3_ring_transform = Mat4.identity()
-            .times(Mat4.rotation(t/4+10, 0, 1, 0))
-            .times(Mat4.translation(planet_3_x_position, 0, 0));
-        // scale torus to be flatter (reduce z-axis scale)
-        planet3_ring_transform = planet3_ring_transform
-            .times(Mat4.scale(planet3_ring_radius, planet3_ring_radius, 0.1));
-        this.shapes.torus.draw(context, program_state, planet3_ring_transform, this.materials.planet3_ring);
+        this.shapes.sphere4.draw(context, program_state, ball_transform, this.materials.ball);
 
-        this.planet_3 = planet3_transform;
-
-        // planet 4
-        let planet4_transform = Mat4.identity();
-        let planet4_x_position = planet_3_x_position + 3;
-        planet4_transform = planet4_transform
-            .times(Mat4.rotation(t/5+5, 0, 1, 0))
-            .times(Mat4.translation(planet4_x_position, 0, 0));
-        this.shapes.sphere4.draw(context, program_state, planet4_transform, this.materials.planet4);
-        // planet 4 moon
-        let planet4_moon_x_position = planet4_x_position;
-        let planet4_moon_transform = Mat4.identity();
-        planet4_moon_transform = planet4_moon_transform
-            .times(Mat4.rotation(t/5+5, 0, 1, 0))
-            .times(Mat4.translation(planet4_moon_x_position, 0, 0))
-            .times(Mat4.rotation(3*t/2, 0, 1, 0))
-            .times(Mat4.translation(2.5, 0, 0));
-        this.shapes.sphere1.draw(context, program_state, planet4_moon_transform, this.materials.planet4_moon);
-
-        this.planet_4 = planet4_transform;
-        this.moon = planet4_moon_transform;
     }
 }
 
