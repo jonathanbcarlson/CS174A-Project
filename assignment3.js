@@ -22,10 +22,28 @@ export class Assignment3 extends Scene {
             cylinder: new defs.Cylindrical_Tube(10, 20),
         };
 
-        this.thrust = vec3(0, 0, 0);
-        this.ball_thrust_position = vec3(0, 0, 0);
-        this.next_direction = null;
-        this.ball_moved = false;
+        this.thrust = {
+            'target': vec3(0, 0, 0),
+            'ball': vec4(0, 0, 0),
+        }
+        this.thrust_position = {
+            'target': vec3(0, 0, 0),
+            'ball': vec3(0, 0, 0),
+        };
+        this.next_direction = {
+            'target': null,
+            'ball': null
+        };
+        this.object_moved = {
+            'target': false,
+            'ball': false
+        };
+
+        this.direction_to_axis = {
+            'left_right': 0,
+            'up_down': 1,
+            'forward_backward': 2,
+        }
 
         // *** Materials
         this.materials = {
@@ -36,6 +54,8 @@ export class Assignment3 extends Scene {
             ring: new Material(new Ring_Shader()),
             ball: new Material(new defs.Phong_Shader(),
                 {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#FFFFFF")}),
+            target: new Material(new defs.Phong_Shader(),
+                {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#FF0000")}),
             field: new Material(new defs.Phong_Shader(),
                 {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#00FF00")}),
             goal_post: new Material(new defs.Phong_Shader(),
@@ -46,15 +66,33 @@ export class Assignment3 extends Scene {
     }
 
     make_control_panel() {
+        // object_type is either ball or target
+        // thrust_val is the value for the thrust
+        // direction is the axis (0 for left_right, 1 for up_down, 2 for forward_backward)
+        let button_cb = (object_type, thrust_val, direction) => {
+            this.next_direction[object_type] = direction;
+            this.object_moved[object_type] = true;
+            this.thrust[object_type][this.direction_to_axis[direction]] = thrust_val;
+        };
+
         // Draw the scene's buttons, setup their actions and keyboard shortcuts, and monitor live measurements.
-        this.key_triggered_button("Move ball Up", ["i"],
-            () => {this.thrust[2] = -1; this.ball_moved = true; this.next_direction = 'vertical'});
-        this.key_triggered_button("Move ball Down", ["k"],
-            () => {this.thrust[2] = 1; this.ball_moved = true; this.next_direction = 'vertical'});
-        this.key_triggered_button("Move ball Left", ["j"],
-            () => {this.thrust[0] = -1; this.ball_moved = true; this.next_direction = 'horizontal'})
-        this.key_triggered_button("Move ball Right", ["l"],
-            () => {this.thrust[0] = 1; this.ball_moved = true; this.next_direction = 'horizontal'});
+        // this.key_triggered_button("Move ball Up", ["i"],
+        //     () => button_cb('ball', -1, 'forward_backward'));
+        // this.key_triggered_button("Move ball Down", ["k"],
+        //     () => button_cb('ball', 1, 'forward_backward'));
+        // this.key_triggered_button("Move ball Left", ["j"],
+        //     () => button_cb('ball', -1, 'left_right'));
+        // this.key_triggered_button("Move ball Right", ["l"],
+        //     () => button_cb('ball', 1, 'left_right'));
+
+        this.key_triggered_button("Move target Up", ["i"],
+            () => button_cb('target', 1, 'up_down'));
+        this.key_triggered_button("Move target Down", ["k"],
+            () => button_cb('target', -1, 'up_down'));
+        this.key_triggered_button("Move target Left", ["j"],
+            () => button_cb('target', -1, 'left_right'));
+        this.key_triggered_button("Move target Right", ["l"],
+            () => button_cb('target', 1, 'left_right'));
     }
 
     display(context, program_state) {
@@ -122,42 +160,53 @@ export class Assignment3 extends Scene {
         this.shapes.cylinder.draw(context, program_state, right_tilt_post_transform, this.materials.goal_post);
 
 
+        let updateThrustPosition = (object_type) => {
+            let next_dir = this.next_direction[object_type]
+            console.log('moving ', object_type, 'towards ', next_dir);
+            // reset others if equal to avoid diagonal movement
+            if (next_dir === 'left_right') {
+                this.thrust[1] = 0;
+                this.thrust[2] = 0;
+            } else if (next_dir === 'up_down' ) {
+                this.thrust[0] = 0;
+                this.thrust[2] = 0;
+            } else if (next_dir === 'forward_backward') {
+                this.thrust[0] = 0;
+                this.thrust[1] = 0;
+            }
 
+            let axis = this.direction_to_axis[next_dir];
+            this.thrust_position[object_type][axis] += this.thrust[object_type][axis];
+
+            this.object_moved[object_type] = false;
+        }
+
+        if (this.object_moved['ball']) {
+            updateThrustPosition('ball');
+        }
+
+        if (this.object_moved['target']) {
+            updateThrustPosition('target');
+        }
+        
         let ball_transform = Mat4.identity();
         let ball_radius = 0.8;
         ball_transform = ball_transform
             .times(Mat4.translation(0,0.9,8))
             .times(Mat4.scale(ball_radius, ball_radius, ball_radius));
 
-        if (this.ball_moved) {
-            // reset if equal to avoid diagonal movement
-            if (this.next_direction === 'vertical') {
-                this.thrust[0] = 0;
-            } else if (this.next_direction === 'horizontal') {
-                this.thrust[2] = 0;
-            }
-
-            if (this.next_direction === 'vertical') {
-                this.ball_thrust_position[2] += this.thrust[2];
-            }
-
-            if (this.next_direction === 'horizontal') {
-                this.ball_thrust_position[0] += this.thrust[0];
-            }
-
-            this.ball_moved = false;
-        }
-
-        ball_transform = ball_transform
-            .times(Mat4.translation(this.ball_thrust_position[0], 0, this.ball_thrust_position[2]));
-
-        // this.key_triggered_button("Up", ["i"], () => this.thrust[1] = -1);
-        // this.key_triggered_button("Down", ["k"], () => this.thrust[1] = 1);
-        // this.key_triggered_button("Left", ["j"], () => this.thrust[0] = 1)
-        // this.key_triggered_button("Right", ["l"], () => this.thrust[0] = -1);
-
         this.shapes.sphere4.draw(context, program_state, ball_transform, this.materials.ball);
 
+        let target_transform = Mat4.identity();
+        target_transform = target_transform
+            .times(Mat4.translation(0,3,-7))
+            .times(Mat4.scale(ball_radius, ball_radius, ball_radius));
+
+        target_transform = target_transform
+            .times(Mat4.translation(this.thrust_position['target'][0],
+                this.thrust_position['target'][1], this.thrust_position['target'][2]));
+
+        this.shapes.circle.draw(context, program_state, target_transform, this.materials.target);
     }
 }
 
