@@ -33,6 +33,7 @@ export class Assignment3 extends Scene {
         this.thrust_position = {
             'target': vec3(0, 0, 0),
             'ball_arrow': vec3(0, 0, 0),
+            'ball': vec3(0, 0, 0),
         };
         this.next_direction = {
             'target': null,
@@ -198,30 +199,6 @@ export class Assignment3 extends Scene {
         }
 
         let ball_radius = 0.8;
-        /*
-        let target_pos = this.thrust_position['target'];
-        let ball_pos = this.thrust_position['ball'];
-        let ball_pos_x = ball_pos[0];
-        let target_pos_x = target_pos[0];
-        // visually the circle intersects ball if it's +/- 1 away
-        let intersects_on_x_axis = (ball_pos_x === target_pos_x
-            || ball_pos_x === target_pos_x + 1
-            || ball_pos_x === target_pos_x - 1);
-        // y is -18 since that's where the goal posts are
-        if (intersects_on_x_axis && ball_pos[2] === -18) {
-            // TODO: increment a score or something
-        }
-
-        let ball_transform = Mat4.identity();
-        ball_transform = ball_transform
-            .times(Mat4.translation(0,0.9,8))
-            .times(Mat4.scale(ball_radius, ball_radius, ball_radius));
-
-        ball_transform = ball_transform
-            .times(Mat4.translation(this.thrust_position['ball'][0],
-                this.thrust_position['ball'][1], this.thrust_position['ball'][2]));
-        this.shapes.sphere4.draw(context, program_state, ball_transform, this.materials.ball);
-        */
 
         let target_transform = Mat4.identity();
         target_transform = target_transform
@@ -293,11 +270,28 @@ export class Assignment3 extends Scene {
             ball_transform = ball_transform
                 .times(Mat4.translation(ball_x, ball_y, -ball_z));
 
+            this.thrust_position['ball'] = vec3(ball_x, ball_y, -ball_z);
+
             this.shapes.sphere4.draw(context, program_state, ball_transform, this.materials.ball);
             this.ball_time += 0.5;
         }
 
         this.shapes.single_arrow.draw(context, program_state, ball_arrow_transform, this.materials.ball_arrow);
+
+
+        let target_pos = this.thrust_position['target'];
+        let ball_pos = this.thrust_position['ball'];
+        let ball_pos_x = ball_pos[0];
+        let target_pos_x = target_pos[0];
+        // visually the circle intersects ball if it's +/- 1 away
+        let intersects_on_x_axis = Math.abs(ball_pos_x - target_pos_x) <= 2;
+        // y is -18 since that's where the goal posts are
+        if (intersects_on_x_axis && ball_pos[2] === -18) {
+            // TODO: increment a score or something
+            console.log('COLLISION');
+        } else if (ball_pos[2] === -18) {
+            console.log(target_pos, ball_pos, intersects_on_x_axis);
+        }
     }
 }
 
