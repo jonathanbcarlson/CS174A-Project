@@ -21,7 +21,10 @@ export class Assignment3 extends Scene {
             circle: new defs.Regular_2D_Polygon(1, 15),
         };
 
-        this.attached = () => null;
+        this.thrust = vec3(0, 0, 0);
+        this.ball_thrust_position = vec3(0, 0, 0);
+        this.next_direction = null;
+        this.ball_moved = false;
 
         // *** Materials
         this.materials = {
@@ -41,15 +44,14 @@ export class Assignment3 extends Scene {
 
     make_control_panel() {
         // Draw the scene's buttons, setup their actions and keyboard shortcuts, and monitor live measurements.
-        this.key_triggered_button("View solar system", ["Control", "0"], () => this.attached = () => Mat4.inverse(this.initial_camera_location));
-        this.new_line();
-        this.key_triggered_button("Attach to planet 1", ["Control", "1"], () => this.attached = () => this.planet_1);
-        this.key_triggered_button("Attach to planet 2", ["Control", "2"], () => this.attached = () => this.planet_2);
-        this.new_line();
-        this.key_triggered_button("Attach to planet 3", ["Control", "3"], () => this.attached = () => this.planet_3);
-        this.key_triggered_button("Attach to planet 4", ["Control", "4"], () => this.attached = () => this.planet_4);
-        this.new_line();
-        this.key_triggered_button("Attach to moon", ["Control", "m"], () => this.attached = () => this.moon);
+        this.key_triggered_button("Move ball Up", ["i"],
+            () => {this.thrust[2] = -1; this.ball_moved = true; this.next_direction = 'vertical'});
+        this.key_triggered_button("Move ball Down", ["k"],
+            () => {this.thrust[2] = 1; this.ball_moved = true; this.next_direction = 'vertical'});
+        this.key_triggered_button("Move ball Left", ["j"],
+            () => {this.thrust[0] = -1; this.ball_moved = true; this.next_direction = 'horizontal'})
+        this.key_triggered_button("Move ball Right", ["l"],
+            () => {this.thrust[0] = 1; this.ball_moved = true; this.next_direction = 'horizontal'});
     }
 
     display(context, program_state) {
@@ -82,6 +84,33 @@ export class Assignment3 extends Scene {
         ball_transform = ball_transform
             .times(Mat4.translation(0,0.9,8))
             .times(Mat4.scale(ball_radius, ball_radius, ball_radius));
+
+        if (this.ball_moved) {
+            // reset if equal to avoid diagonal movement
+            if (this.next_direction === 'vertical') {
+                this.thrust[0] = 0;
+            } else if (this.next_direction === 'horizontal') {
+                this.thrust[2] = 0;
+            }
+
+            if (this.next_direction === 'vertical') {
+                this.ball_thrust_position[2] += this.thrust[2];
+            }
+
+            if (this.next_direction === 'horizontal') {
+                this.ball_thrust_position[0] += this.thrust[0];
+            }
+
+            this.ball_moved = false;
+        }
+
+        ball_transform = ball_transform
+            .times(Mat4.translation(this.ball_thrust_position[0], 0, this.ball_thrust_position[2]));
+
+        // this.key_triggered_button("Up", ["i"], () => this.thrust[1] = -1);
+        // this.key_triggered_button("Down", ["k"], () => this.thrust[1] = 1);
+        // this.key_triggered_button("Left", ["j"], () => this.thrust[0] = 1)
+        // this.key_triggered_button("Right", ["l"], () => this.thrust[0] = -1);
 
         this.shapes.sphere4.draw(context, program_state, ball_transform, this.materials.ball);
 
