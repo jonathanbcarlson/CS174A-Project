@@ -1,7 +1,7 @@
 import {defs, tiny} from './examples/common.js';
 
 const {
-    Vector, Vector3, vec, vec3, vec4, color, hex_color, Shader, Matrix, Mat4, Light, Shape, Material, Scene,
+    Vector, Vector3, vec, vec3, vec4, color, hex_color, Shader, Matrix, Mat4, Light, Shape, Material, Scene, Texture
 } = tiny;
 
 export class Assignment3 extends Scene {
@@ -50,6 +50,7 @@ export class Assignment3 extends Scene {
             'forward_backward': 2,
         }
 
+        const bump = new defs.Fake_Bump_Map(1);
         // *** Materials
         this.materials = {
             test: new Material(new defs.Phong_Shader(),
@@ -67,6 +68,11 @@ export class Assignment3 extends Scene {
                 {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#00FF00")}),
             goal_post: new Material(new defs.Phong_Shader(),
                 {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#FFFFFF")}),
+            // stadium_right is from https://www.flickr.com/photos/ronmacphotos/10628910656
+            // and is creative commons 2.0
+            stadium_right: new Material(bump, {ambient: .5, texture: new Texture("assets/stadium_right.png")}),
+            stadium_behind: new Material(bump, {ambient: .5, texture: new Texture("assets/stadium_behind.png")}),
+            stadium_left: new Material(bump, {ambient: .5, texture: new Texture("assets/stadium_left.png")}),
         }
 
         this.initial_camera_location = Mat4.look_at(vec3(0, 10, 20), vec3(0, 0, 0), vec3(0, 1, 0));
@@ -103,7 +109,7 @@ export class Assignment3 extends Scene {
             () => button_cb('target', 1, 'left_right'));
 
         this.key_triggered_button("Shoot ball", ["Enter"],
-            () => {this.shoot_ball = !this.shoot_ball; this.ball_time = 0});
+            () => {this.shoot_ball = true; this.ball_time = 0});
     }
 
     make_goal(context, program_state, x, z, height, width) {
@@ -145,6 +151,7 @@ export class Assignment3 extends Scene {
             .times(Mat4.rotation(Math.PI/3, -1, 0, 0))
             .times(Mat4.scale(0.3, 0.3, height / Math.cos(Math.PI/6)));
         this.shapes.cylinder.draw(context, program_state, right_tilt_post_transform, this.materials.goal_post);
+
     }
 
     display(context, program_state) {
@@ -165,11 +172,33 @@ export class Assignment3 extends Scene {
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 3)];
 
         let field_transform = Mat4.identity();
+        let field_dim = 20;
         field_transform = field_transform
-            .times(Mat4.scale(10,10,10))
+            .times(Mat4.scale(field_dim,field_dim,field_dim))
             .times(Mat4.rotation(Math.PI/2, 1, 0, 0));
 
         this.shapes.square.draw(context, program_state, field_transform, this.materials.field);
+
+        let stadium_behind_transform = Mat4.identity();
+        stadium_behind_transform = stadium_behind_transform
+            .times(Mat4.translation(0, field_dim, -field_dim))
+            .times(Mat4.scale(field_dim,field_dim,field_dim))
+            .times(Mat4.rotation(Math.PI/2, 0, 0, 1));
+        this.shapes.square.draw(context, program_state, stadium_behind_transform, this.materials.stadium_behind);
+
+        let left_goal_transform = Mat4.identity();
+        left_goal_transform = left_goal_transform
+            .times(Mat4.translation(-field_dim, field_dim, 0))
+            .times(Mat4.scale(field_dim,field_dim,field_dim))
+            .times(Mat4.rotation(Math.PI/2, 0, 1, 0));
+        this.shapes.square.draw(context, program_state, left_goal_transform, this.materials.stadium_left);
+
+        let stadium_right_transform = Mat4.identity();
+        stadium_right_transform = stadium_right_transform
+            .times(Mat4.translation(field_dim, field_dim, 0))
+            .times(Mat4.scale(field_dim,field_dim,field_dim))
+            .times(Mat4.rotation(Math.PI/2, 0, -1, 0));
+        this.shapes.square.draw(context, program_state, stadium_right_transform, this.materials.stadium_right);
 
         this.make_goal(context, program_state, 0, -5, 10, 10);
 
