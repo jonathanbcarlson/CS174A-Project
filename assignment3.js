@@ -106,6 +106,48 @@ export class Assignment3 extends Scene {
             () => {this.shoot_ball = !this.shoot_ball; this.ball_time = 0});
     }
 
+    make_goal(context, program_state, x, z, height, width) {
+        // GOAL POST
+        let left_goal_post_transform = Mat4.identity();
+        left_goal_post_transform = left_goal_post_transform
+            .times(Mat4.translation((-0.5 * width) + x,  height/2, z))
+            .times(Mat4.scale(0.3, height, 0.3))
+            .times(Mat4.rotation(Math.PI/2, 1, 0, 0));
+        this.shapes.cylinder.draw(context, program_state, left_goal_post_transform, this.materials.goal_post);
+
+
+        let right_goal_post_transform = Mat4.identity();
+        right_goal_post_transform = right_goal_post_transform
+            .times(Mat4.translation((width * 0.5) + x, height / 2, z))
+            .times(Mat4.scale(0.3, height, 0.3))
+            .times(Mat4.rotation(Math.PI/2, 1, 0, 0));
+        this.shapes.cylinder.draw(context, program_state, right_goal_post_transform, this.materials.goal_post);
+
+
+        let top_goal_post_transform = Mat4.identity();
+        top_goal_post_transform = top_goal_post_transform
+            .times(Mat4.translation(x, height, z))
+            .times(Mat4.scale(width, 0.3, 0.3))
+            .times(Mat4.rotation(Math.PI/2, 0, 1, 0));
+        this.shapes.cylinder.draw(context, program_state, top_goal_post_transform, this.materials.goal_post);
+
+
+        let left_tilt_post_transform = Mat4.identity();
+        left_tilt_post_transform = left_tilt_post_transform
+            .times(Mat4.translation((-0.5 * width) + x, height / 2, (-1 * height / 2 * Math.tan(Math.PI/6)) + z))
+            .times(Mat4.rotation(Math.PI/3, -1, 0, 0))
+            .times(Mat4.scale(0.3, 0.3, height / Math.cos(Math.PI/6)));
+        this.shapes.cylinder.draw(context, program_state, left_tilt_post_transform, this.materials.goal_post);
+
+        let right_tilt_post_transform = Mat4.identity();
+        right_tilt_post_transform = right_tilt_post_transform
+            .times(Mat4.translation((0.5 * width) + x, height / 2, (-1 * height / 2 * Math.tan(Math.PI/6)) + z))
+            .times(Mat4.rotation(Math.PI/3, -1, 0, 0))
+            .times(Mat4.scale(0.3, 0.3, height / Math.cos(Math.PI/6)));
+        this.shapes.cylinder.draw(context, program_state, right_tilt_post_transform, this.materials.goal_post);
+
+    }
+
     display(context, program_state) {
         // display():  Called once per frame of animation.
         // Setup -- This part sets up the scene's overall camera matrix, projection matrix, and lights:
@@ -130,45 +172,7 @@ export class Assignment3 extends Scene {
 
         this.shapes.square.draw(context, program_state, field_transform, this.materials.field);
 
-        // GOAL POST
-        let left_goal_post_transform = Mat4.identity();
-        left_goal_post_transform = left_goal_post_transform
-            .times(Mat4.translation(-7, 2.5, -7))
-            .times(Mat4.scale(0.3, 5, 0.3))
-            .times(Mat4.rotation(Math.PI/2, 1, 0, 0));
-        this.shapes.cylinder.draw(context, program_state, left_goal_post_transform, this.materials.goal_post);
-
-
-        let right_goal_post_transform = Mat4.identity();
-        right_goal_post_transform = right_goal_post_transform
-            .times(Mat4.translation(7, 2.5, -7))
-            .times(Mat4.scale(0.3, 5, 0.3))
-            .times(Mat4.rotation(Math.PI/2, 1, 0, 0));
-        this.shapes.cylinder.draw(context, program_state, right_goal_post_transform, this.materials.goal_post);
-
-
-        let top_goal_post_transform = Mat4.identity();
-        top_goal_post_transform = top_goal_post_transform
-            .times(Mat4.translation(0, 5, -7))
-            .times(Mat4.scale(14, 0.3, 0.3))
-            .times(Mat4.rotation(Math.PI/2, 0, 1, 0));
-        this.shapes.cylinder.draw(context, program_state, top_goal_post_transform, this.materials.goal_post);
-
-
-        let left_tilt_post_transform = Mat4.identity();
-        left_tilt_post_transform = left_tilt_post_transform
-            .times(Mat4.translation(-7, 2.5, -8.5))
-            .times(Mat4.rotation(Math.PI/3, -1, 0, 0))
-            .times(Mat4.scale(0.3, 0.3, 5.5));
-        this.shapes.cylinder.draw(context, program_state, left_tilt_post_transform, this.materials.goal_post);
-
-        let right_tilt_post_transform = Mat4.identity();
-        right_tilt_post_transform = right_tilt_post_transform
-            .times(Mat4.translation(7, 2.5, -8.5))
-            .times(Mat4.rotation(Math.PI/3, -1, 0, 0))
-            .times(Mat4.scale(0.3, 0.3, 5.5));
-        this.shapes.cylinder.draw(context, program_state, right_tilt_post_transform, this.materials.goal_post);
-
+        this.make_goal(context, program_state, 0, -5, 10, 10);
 
         let updateThrustPosition = (object_type) => {
             let next_dir = this.next_direction[object_type]
