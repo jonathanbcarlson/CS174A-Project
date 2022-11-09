@@ -145,7 +145,6 @@ export class Assignment3 extends Scene {
             .times(Mat4.rotation(Math.PI/3, -1, 0, 0))
             .times(Mat4.scale(0.3, 0.3, height / Math.cos(Math.PI/6)));
         this.shapes.cylinder.draw(context, program_state, right_tilt_post_transform, this.materials.goal_post);
-
     }
 
     display(context, program_state) {
