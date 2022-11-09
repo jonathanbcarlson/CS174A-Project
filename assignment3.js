@@ -109,7 +109,7 @@ export class Assignment3 extends Scene {
             () => button_cb('target', 1, 'left_right'));
 
         this.key_triggered_button("Shoot ball", ["Enter"],
-            () => {this.shoot_ball = !this.shoot_ball; this.ball_time = 0});
+            () => {this.shoot_ball = true; this.ball_time = 0});
     }
 
     display(context, program_state) {
