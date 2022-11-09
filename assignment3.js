@@ -285,6 +285,26 @@ export class Assignment3 extends Scene {
         }
     }
 
+    ball_target_collision_detection(ball_target_x_distance) {
+        let target_pos = this.thrust_position['target'];
+        let ball_pos = this.thrust_position['ball'];
+        let ball_pos_x = ball_pos[0];
+        let target_pos_x = target_pos[0];
+        // visually the circle intersects ball if it's +/- ball_target_x_distance away
+        let intersects_on_x_axis = Math.abs(ball_pos_x - target_pos_x) <= ball_target_x_distance;
+        // y is -18 since that's where the goal posts are
+        if (intersects_on_x_axis && Math.floor(ball_pos[2]) === -18) {
+            // TODO: increment a score or something
+            console.log('COLLISION');
+        } else if (ball_pos[2] === -18) {
+            console.log(target_pos, ball_pos, intersects_on_x_axis);
+        } else if (ball_pos[1] < -5) {
+            // less than -5 so then ball will below plane and player won't be able to see the ball move
+            this.have_determined_ball_v0 = false;
+        }
+
+    }
+
     display(context, program_state) {
         // display():  Called once per frame of animation.
         // Setup -- This part sets up the scene's overall camera matrix, projection matrix, and lights:
@@ -320,22 +340,7 @@ export class Assignment3 extends Scene {
 
         this.move_ball(context, program_state, ball_arrow_transform);
 
-        let target_pos = this.thrust_position['target'];
-        let ball_pos = this.thrust_position['ball'];
-        let ball_pos_x = ball_pos[0];
-        let target_pos_x = target_pos[0];
-        // visually the circle intersects ball if it's +/- 1 away
-        let intersects_on_x_axis = Math.abs(ball_pos_x - target_pos_x) <= 2;
-        // y is -18 since that's where the goal posts are
-        if (intersects_on_x_axis && ball_pos[2] === -18) {
-            // TODO: increment a score or something
-            console.log('COLLISION');
-        } else if (ball_pos[2] === -18) {
-            console.log(target_pos, ball_pos, intersects_on_x_axis);
-        } else if (ball_pos[1] < -5) {
-            // less than -5 so then ball will below plane and player won't be able to see the ball move
-            this.have_determined_ball_v0 = false;
-        }
+        this.ball_target_collision_detection(2);
     }
 }
 
