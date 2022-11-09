@@ -28,6 +28,10 @@ export class Assignment3 extends Scene {
         this.shoot_ball = false;
         this.have_determined_ball_v0 = false;
 
+        this.goal_height = 10;
+        this.goal_width = 10;
+        this.goal_z = -5;
+
         this.thrust = {
             'target': vec3(0, 0, 0),
             'ball_arrow': vec4(0, 0, 0),
@@ -114,44 +118,44 @@ export class Assignment3 extends Scene {
             () => {this.shoot_ball = true; this.ball_time = 0});
     }
 
-    make_goal(context, program_state, x, z, height, width) {
+    make_goal(context, program_state, x) {
         // GOAL POST
         let left_goal_post_transform = Mat4.identity();
         left_goal_post_transform = left_goal_post_transform
-            .times(Mat4.translation((-0.5 * width) + x,  height/2, z))
-            .times(Mat4.scale(0.3, height, 0.3))
+            .times(Mat4.translation((-0.5 * this.goal_width) + x,  this.goal_height/2, this.goal_z))
+            .times(Mat4.scale(0.3, this.goal_height, 0.3))
             .times(Mat4.rotation(Math.PI/2, 1, 0, 0));
         this.shapes.cylinder.draw(context, program_state, left_goal_post_transform, this.materials.goal_post);
 
 
         let right_goal_post_transform = Mat4.identity();
         right_goal_post_transform = right_goal_post_transform
-            .times(Mat4.translation((width * 0.5) + x, height / 2, z))
-            .times(Mat4.scale(0.3, height, 0.3))
+            .times(Mat4.translation((this.goal_width * 0.5) + x, this.goal_height / 2, this.goal_z))
+            .times(Mat4.scale(0.3, this.goal_height, 0.3))
             .times(Mat4.rotation(Math.PI/2, 1, 0, 0));
         this.shapes.cylinder.draw(context, program_state, right_goal_post_transform, this.materials.goal_post);
 
 
         let top_goal_post_transform = Mat4.identity();
         top_goal_post_transform = top_goal_post_transform
-            .times(Mat4.translation(x, height, z))
-            .times(Mat4.scale(width, 0.3, 0.3))
+            .times(Mat4.translation(x, this.goal_height, this.goal_z))
+            .times(Mat4.scale(this.goal_width, 0.3, 0.3))
             .times(Mat4.rotation(Math.PI/2, 0, 1, 0));
         this.shapes.cylinder.draw(context, program_state, top_goal_post_transform, this.materials.goal_post);
 
 
         let left_tilt_post_transform = Mat4.identity();
         left_tilt_post_transform = left_tilt_post_transform
-            .times(Mat4.translation((-0.5 * width) + x, height / 2, (-1 * height / 2 * Math.tan(Math.PI/6)) + z))
+            .times(Mat4.translation((-0.5 * this.goal_width) + x, this.goal_height / 2, (-1 * this.goal_height / 2 * Math.tan(Math.PI/6)) + this.goal_z))
             .times(Mat4.rotation(Math.PI/3, -1, 0, 0))
-            .times(Mat4.scale(0.3, 0.3, height / Math.cos(Math.PI/6)));
+            .times(Mat4.scale(0.3, 0.3, this.goal_height / Math.cos(Math.PI/6)));
         this.shapes.cylinder.draw(context, program_state, left_tilt_post_transform, this.materials.goal_post);
 
         let right_tilt_post_transform = Mat4.identity();
         right_tilt_post_transform = right_tilt_post_transform
-            .times(Mat4.translation((0.5 * width) + x, height / 2, (-1 * height / 2 * Math.tan(Math.PI/6)) + z))
+            .times(Mat4.translation((0.5 * this.goal_width) + x, this.goal_height / 2, (-1 * this.goal_height / 2 * Math.tan(Math.PI/6)) + this.goal_z))
             .times(Mat4.rotation(Math.PI/3, -1, 0, 0))
-            .times(Mat4.scale(0.3, 0.3, height / Math.cos(Math.PI/6)));
+            .times(Mat4.scale(0.3, 0.3, this.goal_height / Math.cos(Math.PI/6)));
         this.shapes.cylinder.draw(context, program_state, right_tilt_post_transform, this.materials.goal_post);
 
     }
@@ -206,7 +210,7 @@ export class Assignment3 extends Scene {
 
         let target_transform = Mat4.identity();
         target_transform = target_transform
-            .times(Mat4.translation(0,3,-7))
+            .times(Mat4.translation(0,3, this.goal_z))
             .times(Mat4.scale(this.ball_radius, this.ball_radius, this.ball_radius));
 
         target_transform = target_transform
@@ -235,7 +239,7 @@ export class Assignment3 extends Scene {
         return ball_arrow_transform;
     }
 
-    move_ball(context, program_state, ball_arrow_transform) {
+    move_ball(context, program_state, ball_arrow_transform, goal_height, goal_width) {
         if (this.object_moved['ball_arrow']) {
             this.updateThrustPosition('ball_arrow');
         }
@@ -253,7 +257,6 @@ export class Assignment3 extends Scene {
             // smaller ba_y[1] means smaller y
             // larger ba_y[1] means larger y
 
-
             if (!this.have_determined_ball_v0) {
                 this.ball_v0_x = ba_x[1];
                 this.ball_v0_y = ba_y[1];
@@ -268,7 +271,10 @@ export class Assignment3 extends Scene {
             let ball_z = v0_z*this.ball_time;
             // y = v0_y * t - 0.5 g t**2 where v0_y is the norm of the second row of ball_arrow_transform
             let v0_y = this.ball_v0_y;
-            let ball_y_scale = 0.32;
+
+            // TODO: take into account goal_height
+            // let ball_y_scale = 0.32;
+            let ball_y_scale = 0.2;
             let ball_y = v0_y * this.ball_time - 0.5 * ball_y_scale * this.ball_time**2;
 
             ball_transform = ball_transform
@@ -285,21 +291,36 @@ export class Assignment3 extends Scene {
         }
     }
 
-    ball_target_collision_detection(ball_target_x_distance) {
+    ball_target_collision_detection(ball_target_x_distance, ball_target_y_distance) {
         let target_pos = this.thrust_position['target'];
         let ball_pos = this.thrust_position['ball'];
-        let ball_pos_x = ball_pos[0];
-        let target_pos_x = target_pos[0];
+        let ball_pos_x = ball_pos[0], ball_pos_y = ball_pos[1];
+        let target_pos_x = target_pos[0], target_pos_y = target_pos[1];
         // visually the circle intersects ball if it's +/- ball_target_x_distance away
         let intersects_on_x_axis = Math.abs(ball_pos_x - target_pos_x) <= ball_target_x_distance;
-        // y is -18 since that's where the goal posts are
-        if (intersects_on_x_axis && Math.floor(ball_pos[2]) === -18) {
+        // same for y (height)
+        let intersects_on_y_axis = Math.abs(Math.floor(ball_pos_y) - target_pos_y) <= ball_target_y_distance;
+        // z is -18 since that's where the goal posts are
+        let intersects_on_z_axis = Math.floor(ball_pos[2]) === -18;
+        if (intersects_on_x_axis && intersects_on_y_axis && intersects_on_z_axis) {
             // TODO: increment a score or something
-            console.log('COLLISION');
-        } else if (ball_pos[2] === -18) {
-            console.log(target_pos, ball_pos, intersects_on_x_axis);
-        } else if (ball_pos[1] < -5) {
-            // less than -5 so then ball will below plane and player won't be able to see the ball move
+            console.log('COLLISION', target_pos, ball_pos);
+            /*
+            let a = new Audio('assets/audio/goal.m4a');
+            // https://developer.mozilla.org/en-US/docs/Web/API/HTMLAudioElement/Audio
+            a.addEventListener("canplaythrough", (event) => {
+                // audio is now playable
+                a.play();
+            });
+            */
+        } else if (intersects_on_z_axis) {
+            console.log(target_pos, ball_pos, intersects_on_x_axis, intersects_on_y_axis, intersects_on_z_axis);
+        } else if (ball_pos[1] < -1) {
+            // less than -1 so then ball will below plane and player won't be able to see the ball move
+            // NOTE: that this value (-1) determines how quickly the new ball_arrow position
+            //       will be taken into account when the user presses Enter again
+            //       if it's too big say -5 then if the user moves the arrow before the ball gets to -5
+            //       then the ball will go in the previously chosen direction
             this.have_determined_ball_v0 = false;
         }
 
@@ -332,7 +353,7 @@ export class Assignment3 extends Scene {
 
         this.make_stadium(context, program_state, field_dim);
 
-        this.make_goal(context, program_state, 0, -5, 10, 10);
+        this.make_goal(context, program_state, 0);
 
         this.move_target(context, program_state);
 
@@ -340,7 +361,7 @@ export class Assignment3 extends Scene {
 
         this.move_ball(context, program_state, ball_arrow_transform);
 
-        this.ball_target_collision_detection(2);
+        this.ball_target_collision_detection(2, 3);
     }
 }
 
