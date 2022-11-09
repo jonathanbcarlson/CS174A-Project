@@ -23,8 +23,10 @@ export class Assignment3 extends Scene {
             cylinder: new defs.Cylindrical_Tube(10, 20),
         };
 
+        this.ball_radius = 0.8;
         this.ball_time = 0;
         this.shoot_ball = false;
+        this.have_determined_ball_v0 = false;
 
         this.thrust = {
             'target': vec3(0, 0, 0),
@@ -154,6 +156,135 @@ export class Assignment3 extends Scene {
 
     }
 
+    make_stadium(context, program_state, field_dim) {
+        let stadium_behind_transform = Mat4.identity();
+        stadium_behind_transform = stadium_behind_transform
+            .times(Mat4.translation(0, field_dim, -field_dim))
+            .times(Mat4.scale(field_dim,field_dim,field_dim))
+            .times(Mat4.rotation(Math.PI/2, 0, 0, 1));
+        this.shapes.square.draw(context, program_state, stadium_behind_transform, this.materials.stadium_behind);
+
+        let stadium_left_transform = Mat4.identity();
+        stadium_left_transform = stadium_left_transform
+            .times(Mat4.translation(-field_dim, field_dim, 0))
+            .times(Mat4.scale(field_dim,field_dim,field_dim))
+            .times(Mat4.rotation(Math.PI/2, 0, 1, 0));
+        this.shapes.square.draw(context, program_state, stadium_left_transform, this.materials.stadium_left);
+
+        let stadium_right_transform = Mat4.identity();
+        stadium_right_transform = stadium_right_transform
+            .times(Mat4.translation(field_dim, field_dim, 0))
+            .times(Mat4.scale(field_dim,field_dim,field_dim))
+            .times(Mat4.rotation(Math.PI/2, 0, -1, 0));
+        this.shapes.square.draw(context, program_state, stadium_right_transform, this.materials.stadium_right);
+    }
+
+    updateThrustPosition(object_type) {
+        let next_dir = this.next_direction[object_type]
+        // reset others if equal to avoid diagonal movement
+        if (next_dir === 'left_right') {
+            this.thrust[1] = 0;
+            this.thrust[2] = 0;
+        } else if (next_dir === 'up_down' ) {
+            this.thrust[0] = 0;
+            this.thrust[2] = 0;
+        } else if (next_dir === 'forward_backward') {
+            this.thrust[0] = 0;
+            this.thrust[1] = 0;
+        }
+
+        let axis = this.direction_to_axis[next_dir];
+        this.thrust_position[object_type][axis] += this.thrust[object_type][axis];
+
+        this.object_moved[object_type] = false;
+    }
+
+    move_target(context, program_state) {
+        if (this.object_moved['target']) {
+            this.updateThrustPosition('target');
+        }
+
+        let target_transform = Mat4.identity();
+        target_transform = target_transform
+            .times(Mat4.translation(0,3,-7))
+            .times(Mat4.scale(this.ball_radius, this.ball_radius, this.ball_radius));
+
+        target_transform = target_transform
+            .times(Mat4.translation(this.thrust_position['target'][0],
+                this.thrust_position['target'][1], this.thrust_position['target'][2]));
+
+        this.shapes.circle.draw(context, program_state, target_transform, this.materials.target);
+    }
+
+    draw_ball_arrow (context, program_state) {
+        let ball_arrow_transform = Mat4.identity();
+        let ball_arrow_scale = 2;
+        // TODO: determine if user can move the arrow left and right or if it should stay at the center
+        ball_arrow_transform = ball_arrow_transform
+            .times(Mat4.translation(0, 0, 8))
+            .times(Mat4.scale(ball_arrow_scale, ball_arrow_scale, ball_arrow_scale));
+        // FIXME: if user holds down in a direction for too long then because we're passing this to sin
+        //        then the arrow starts oscillating back and forth.
+        //        This could be cool to randomize the arrow location or have the user press SPACE to stop
+        //        the arrow at a random location.
+        ball_arrow_transform = ball_arrow_transform
+            .times(Mat4.rotation(Math.sin(this.thrust_position['ball_arrow'][2] * Math.PI / 20), 1, 0, 0))
+            .times(Mat4.rotation(Math.sin(this.thrust_position['ball_arrow'][0] * Math.PI / 20), 0, 0, 1));
+
+        this.shapes.single_arrow.draw(context, program_state, ball_arrow_transform, this.materials.ball_arrow);
+        return ball_arrow_transform;
+    }
+
+    move_ball(context, program_state, ball_arrow_transform) {
+        if (this.object_moved['ball_arrow']) {
+            this.updateThrustPosition('ball_arrow');
+        }
+
+        let ball_transform = Mat4.identity();
+        if (this.shoot_ball) {
+            // z = v0_z * t where v0_z is the norm of the third row of ball_arrow_transform
+            let ba_x = ball_arrow_transform.toString().split(',').slice(0, 3);
+            let ba_y = ball_arrow_transform.toString().split(',').slice(4, 7);
+            let ba_z = ball_arrow_transform.toString().split(',').slice(8, 11);
+
+            // behavior notes from perspective of user
+            // more positive ba_x[1] means x is more to the right
+            // more negative ba_x[1] means x is more to the left
+            // smaller ba_y[1] means smaller y
+            // larger ba_y[1] means larger y
+
+
+            if (!this.have_determined_ball_v0) {
+                this.ball_v0_x = ba_x[1];
+                this.ball_v0_y = ba_y[1];
+                this.ball_v0_z = ba_z[2];
+                this.have_determined_ball_v0 = true;
+            }
+
+            let v0_x = this.ball_v0_x;
+            let ball_x = v0_x*this.ball_time;
+
+            let v0_z = this.ball_v0_z;
+            let ball_z = v0_z*this.ball_time;
+            // y = v0_y * t - 0.5 g t**2 where v0_y is the norm of the second row of ball_arrow_transform
+            let v0_y = this.ball_v0_y;
+            let ball_y_scale = 0.32;
+            let ball_y = v0_y * this.ball_time - 0.5 * ball_y_scale * this.ball_time**2;
+
+            ball_transform = ball_transform
+                .times(Mat4.translation(0, 0.9, 8))
+                .times(Mat4.scale(this.ball_radius, this.ball_radius, this.ball_radius));
+
+            ball_transform = ball_transform
+                .times(Mat4.translation(ball_x, ball_y, -ball_z));
+
+            this.thrust_position['ball'] = vec3(ball_x, ball_y, -ball_z);
+
+            this.shapes.sphere4.draw(context, program_state, ball_transform, this.materials.ball);
+            this.ball_time += 0.5;
+        }
+    }
+
     display(context, program_state) {
         // display():  Called once per frame of animation.
         // Setup -- This part sets up the scene's overall camera matrix, projection matrix, and lights:
@@ -179,137 +310,15 @@ export class Assignment3 extends Scene {
 
         this.shapes.square.draw(context, program_state, field_transform, this.materials.field);
 
-        let stadium_behind_transform = Mat4.identity();
-        stadium_behind_transform = stadium_behind_transform
-            .times(Mat4.translation(0, field_dim, -field_dim))
-            .times(Mat4.scale(field_dim,field_dim,field_dim))
-            .times(Mat4.rotation(Math.PI/2, 0, 0, 1));
-        this.shapes.square.draw(context, program_state, stadium_behind_transform, this.materials.stadium_behind);
-
-        let left_goal_transform = Mat4.identity();
-        left_goal_transform = left_goal_transform
-            .times(Mat4.translation(-field_dim, field_dim, 0))
-            .times(Mat4.scale(field_dim,field_dim,field_dim))
-            .times(Mat4.rotation(Math.PI/2, 0, 1, 0));
-        this.shapes.square.draw(context, program_state, left_goal_transform, this.materials.stadium_left);
-
-        let stadium_right_transform = Mat4.identity();
-        stadium_right_transform = stadium_right_transform
-            .times(Mat4.translation(field_dim, field_dim, 0))
-            .times(Mat4.scale(field_dim,field_dim,field_dim))
-            .times(Mat4.rotation(Math.PI/2, 0, -1, 0));
-        this.shapes.square.draw(context, program_state, stadium_right_transform, this.materials.stadium_right);
+        this.make_stadium(context, program_state, field_dim);
 
         this.make_goal(context, program_state, 0, -5, 10, 10);
 
-        let updateThrustPosition = (object_type) => {
-            let next_dir = this.next_direction[object_type]
-            // reset others if equal to avoid diagonal movement
-            if (next_dir === 'left_right') {
-                this.thrust[1] = 0;
-                this.thrust[2] = 0;
-            } else if (next_dir === 'up_down' ) {
-                this.thrust[0] = 0;
-                this.thrust[2] = 0;
-            } else if (next_dir === 'forward_backward') {
-                this.thrust[0] = 0;
-                this.thrust[1] = 0;
-            }
+        this.move_target(context, program_state);
 
-            let axis = this.direction_to_axis[next_dir];
-            this.thrust_position[object_type][axis] += this.thrust[object_type][axis];
+        let ball_arrow_transform = this.draw_ball_arrow(context, program_state);
 
-            this.object_moved[object_type] = false;
-        }
-
-        if (this.object_moved['ball_arrow']) {
-            updateThrustPosition('ball_arrow');
-        }
-
-        if (this.object_moved['target']) {
-            updateThrustPosition('target');
-        }
-
-        let ball_radius = 0.8;
-
-        let target_transform = Mat4.identity();
-        target_transform = target_transform
-            .times(Mat4.translation(0,3,-7))
-            .times(Mat4.scale(ball_radius, ball_radius, ball_radius));
-
-        target_transform = target_transform
-            .times(Mat4.translation(this.thrust_position['target'][0],
-                this.thrust_position['target'][1], this.thrust_position['target'][2]));
-
-        this.shapes.circle.draw(context, program_state, target_transform, this.materials.target);
-
-        let ball_arrow_transform = Mat4.identity();
-        let ball_arrow_scale = 2;
-        // TODO: determine if user can move the arrow left and right or if it should stay at the center
-        ball_arrow_transform = ball_arrow_transform
-            .times(Mat4.translation(0, 0, 8))
-            .times(Mat4.scale(ball_arrow_scale,ball_arrow_scale, ball_arrow_scale));
-        // FIXME: if user holds down in a direction for too long then because we're passing this to sin
-        //        then the arrow starts oscillating back and forth.
-        //        This could be cool to randomize the arrow location or have the user press SPACE to stop
-        //        the arrow at a random location.
-        ball_arrow_transform = ball_arrow_transform
-            .times(Mat4.rotation(Math.sin(this.thrust_position['ball_arrow'][2]*Math.PI/20), 1, 0, 0))
-            .times(Mat4.rotation(Math.sin(this.thrust_position['ball_arrow'][0]*Math.PI/20), 0, 0, 1));
-
-        let debug_matrix_str = (m_str) => {
-            let i = 0;
-            m_str = m_str.split(',')
-            console.log('BEFORE');
-            let x = m_str.slice(0, 4);
-            let y = m_str.slice(4, 8);
-            let z = m_str.slice(8, 12);
-            let h = m_str.slice(12, 16);
-            console.log(x);
-            console.log(y);
-            console.log(z);
-            console.log(h);
-            console.log('AFTER');
-        };
-
-        let ball_transform = Mat4.identity();
-        if (this.shoot_ball) {
-            // z = v0_z * t where v0_z is the norm of the third row of ball_arrow_transform
-            let ba_x = ball_arrow_transform.toString().split(',').slice(0, 3);
-            let ba_y = ball_arrow_transform.toString().split(',').slice(4, 7);
-            let ba_z = ball_arrow_transform.toString().split(',').slice(8, 11);
-
-            // behavior notes from perspective of user
-            // more positive ba_x[1] means x is more to the right
-            // more negative ba_x[1] means x is more to the left
-            // smaller ba_y[1] means smaller y
-            // larger ba_y[1] means larger y
-
-            let v0_x = ba_x[1];
-            let ball_x = v0_x*this.ball_time;
-
-            let v0_z = ba_z[2];
-            let ball_z = v0_z*this.ball_time;
-            // y = v0_y * t - 0.5 g t**2 where v0_y is the norm of the second row of ball_arrow_transform
-            let v0_y = ba_y[1];
-            let ball_y_scale = 0.32;
-            let ball_y = v0_y * this.ball_time - 0.5 * ball_y_scale * this.ball_time**2;
-
-            ball_transform = ball_transform
-                .times(Mat4.translation(0, 0.9, 8))
-                .times(Mat4.scale(ball_radius, ball_radius, ball_radius));
-
-            ball_transform = ball_transform
-                .times(Mat4.translation(ball_x, ball_y, -ball_z));
-
-            this.thrust_position['ball'] = vec3(ball_x, ball_y, -ball_z);
-
-            this.shapes.sphere4.draw(context, program_state, ball_transform, this.materials.ball);
-            this.ball_time += 0.5;
-        }
-
-        this.shapes.single_arrow.draw(context, program_state, ball_arrow_transform, this.materials.ball_arrow);
-
+        this.move_ball(context, program_state, ball_arrow_transform);
 
         let target_pos = this.thrust_position['target'];
         let ball_pos = this.thrust_position['ball'];
@@ -323,6 +332,9 @@ export class Assignment3 extends Scene {
             console.log('COLLISION');
         } else if (ball_pos[2] === -18) {
             console.log(target_pos, ball_pos, intersects_on_x_axis);
+        } else if (ball_pos[1] < -5) {
+            // less than -5 so then ball will below plane and player won't be able to see the ball move
+            this.have_determined_ball_v0 = false;
         }
     }
 }
