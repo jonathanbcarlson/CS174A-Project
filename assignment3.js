@@ -29,7 +29,7 @@ export class Assignment3 extends Scene {
         this.have_determined_ball_v0 = false;
 
         this.goal_height = 10;
-        this.goal_width = 10;
+        this.goal_width = 20;
         this.goal_z = -5;
 
         this.thrust = {
@@ -239,7 +239,7 @@ export class Assignment3 extends Scene {
         return ball_arrow_transform;
     }
 
-    move_ball(context, program_state, ball_arrow_transform, goal_height, goal_width) {
+    move_ball(context, program_state, ball_arrow_transform) {
         if (this.object_moved['ball_arrow']) {
             this.updateThrustPosition('ball_arrow');
         }
@@ -272,10 +272,12 @@ export class Assignment3 extends Scene {
             // y = v0_y * t - 0.5 g t**2 where v0_y is the norm of the second row of ball_arrow_transform
             let v0_y = this.ball_v0_y;
 
-            // TODO: take into account goal_height
-            // let ball_y_scale = 0.32;
-            let ball_y_scale = 0.2;
-            let ball_y = v0_y * this.ball_time - 0.5 * ball_y_scale * this.ball_time**2;
+            // as goal_height increases ball_y_scale should decrease
+            // 0.1 is a good value for a goal_height of 10
+            // 0.05 is a good value for a goal_height of 20
+            // note that this doesn't allow the ball to hit the top corners but that's a rare case
+            let ball_y_scale = 0.1*(10/this.goal_height);
+            let ball_y = v0_y * this.ball_time - ball_y_scale * this.ball_time**2;
 
             ball_transform = ball_transform
                 .times(Mat4.translation(0, 0.9, 8))
@@ -317,7 +319,7 @@ export class Assignment3 extends Scene {
             console.log(target_pos, ball_pos, intersects_on_x_axis, intersects_on_y_axis, intersects_on_z_axis);
         } else if (ball_pos[1] < -1) {
             // less than -1 so then ball will below plane and player won't be able to see the ball move
-            // NOTE: that this value (-1) determines how quickly the new ball_arrow position
+            // FIXME: the value -1 determines how quickly the new ball_arrow position
             //       will be taken into account when the user presses Enter again
             //       if it's too big say -5 then if the user moves the arrow before the ball gets to -5
             //       then the ball will go in the previously chosen direction
