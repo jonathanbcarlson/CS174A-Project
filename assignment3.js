@@ -227,13 +227,35 @@ export class Assignment3 extends Scene {
         ball_arrow_transform = ball_arrow_transform
             .times(Mat4.translation(0, 0, 8))
             .times(Mat4.scale(ball_arrow_scale, ball_arrow_scale, ball_arrow_scale));
-        // FIXME: if user holds down in a direction for too long then because we're passing this to sin
-        //        then the arrow starts oscillating back and forth.
-        //        This could be cool to randomize the arrow location or have the user press SPACE to stop
-        //        the arrow at a random location.
+
+        // TODO: take into account the angle between the arrow vector and the field plane
+        // if the angle is 0 then just have it go straight (roll on field)
+        // otherwise do parabolic with the initial y-thrust/ball_y_scale a function of the angle??
+        let x_rotation_angle = this.position['ball_arrow'][2]/10;
+        let z_rotation_angle = this.position['ball_arrow'][0]/10;
+        console.log('x_angle=', x_rotation_angle, 'z_angle=', z_rotation_angle)
+
+        let determine_rotation_angle_and_update_position = (input_angle, angle_max, angle_min, axis) => {
+            let angle = input_angle;
+            if (angle >= angle_max) {
+                angle = angle_max;
+            } else if (angle <= angle_min) {
+                angle = angle_min;
+            }
+            this.position['ball_arrow'][axis] = angle*10;
+            return angle;
+        }
+
+        // FIXME: make z_rotation_angle a function of goal width
+        z_rotation_angle = determine_rotation_angle_and_update_position(
+            z_rotation_angle, 1, -1, 0);
+
+        x_rotation_angle = determine_rotation_angle_and_update_position(
+            x_rotation_angle, 0.3, -0.7, 2);
+
         ball_arrow_transform = ball_arrow_transform
-            .times(Mat4.rotation(Math.sin(this.thrust_position['ball_arrow'][2] * Math.PI / 20), 1, 0, 0))
-            .times(Mat4.rotation(Math.sin(this.thrust_position['ball_arrow'][0] * Math.PI / 20), 0, 0, 1));
+            .times(Mat4.rotation(x_rotation_angle, 1, 0, 0))
+            .times(Mat4.rotation(z_rotation_angle, 0, 0, 1));
 
         this.shapes.single_arrow.draw(context, program_state, ball_arrow_transform, this.materials.ball_arrow);
         return ball_arrow_transform;
