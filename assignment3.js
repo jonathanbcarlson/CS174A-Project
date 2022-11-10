@@ -96,9 +96,9 @@ export class Assignment3 extends Scene {
 
         // Draw the scene's buttons, setup their actions and keyboard shortcuts, and monitor live measurements.
         // use ArrowUp/Down/Left/Right for arrow keys found from https://stackoverflow.com/a/44213036
-        this.key_triggered_button("Move arrow Up", ["ArrowUp"],
+        this.key_triggered_button("Move arrow Up", ["ArrowDown"],
             () => button_cb('ball_arrow', -1, 'forward_backward'));
-        this.key_triggered_button("Move arrow Down", ["ArrowDown"],
+        this.key_triggered_button("Move arrow Down", ["ArrowUp"],
             () => button_cb('ball_arrow', 1, 'forward_backward'));
         this.key_triggered_button("Move arrow Left", ["ArrowLeft"],
             () => button_cb('ball_arrow', 1, 'left_right'));
@@ -250,8 +250,12 @@ export class Assignment3 extends Scene {
         z_rotation_angle = determine_rotation_angle_and_update_position(
             z_rotation_angle, 1, -1, 0);
 
+        let x_rotation_angle_min = -0.7;
+        if (z_rotation_angle <= -0.7 || z_rotation_angle >= 0.6) {
+            x_rotation_angle_min = -0.5;
+        }
         x_rotation_angle = determine_rotation_angle_and_update_position(
-            x_rotation_angle, 0.3, -0.7, 2);
+            x_rotation_angle, 0.3, x_rotation_angle_min, 2);
 
         ball_arrow_transform = ball_arrow_transform
             .times(Mat4.rotation(x_rotation_angle, 1, 0, 0))
