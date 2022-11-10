@@ -81,7 +81,7 @@ export class Assignment3 extends Scene {
             stadium_left: new Material(bump, {ambient: .5, texture: new Texture("assets/stadium_left.png")}),
         }
 
-        this.initial_camera_location = Mat4.look_at(vec3(0, 10, 30), vec3(0, 0, 0), vec3(0, 1, 0));
+        this.initial_camera_location = Mat4.look_at(vec3(0, 10, 32), vec3(0, 0, 0), vec3(0, 1, 0));
     }
 
     make_control_panel() {
@@ -346,6 +346,7 @@ export class Assignment3 extends Scene {
         if (intersects_on_x_axis && intersects_on_y_axis && intersects_on_z_axis) {
             // TODO: increment a score or something
             console.log('COLLISION', target_pos, ball_pos);
+            alert('Nice shot!');
             /*
             let a = new Audio('assets/audio/goal.m4a');
             // https://developer.mozilla.org/en-US/docs/Web/API/HTMLAudioElement/Audio
