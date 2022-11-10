@@ -81,7 +81,7 @@ export class Assignment3 extends Scene {
             stadium_left: new Material(bump, {ambient: .5, texture: new Texture("assets/stadium_left.png")}),
         }
 
-        this.initial_camera_location = Mat4.look_at(vec3(0, 10, 20), vec3(0, 0, 0), vec3(0, 1, 0));
+        this.initial_camera_location = Mat4.look_at(vec3(0, 10, 30), vec3(0, 0, 0), vec3(0, 1, 0));
     }
 
     make_control_panel() {
@@ -204,8 +204,21 @@ export class Assignment3 extends Scene {
     }
 
     move_target(context, program_state) {
+        let lower_boundary = {0: (-this.goal_width / 2) - 1, 1: -2};
+        let upper_boundary = {0: (this.goal_width / 2) + 1, 1: (this.goal_height / 2) + 2};
+
         if (this.object_moved['target']) {
-            this.updateThrustPosition('target');
+            // Assumption: next direction for target will never be z-dimension
+            let axis = this.next_direction['target'] === "left_right" ? 0 : 1;
+            let target = this.position['target'];
+            let delta = this.thrust['target'][axis];
+
+            if ((lower_boundary[axis] <= target[axis] + delta) && (target[axis] + delta <= upper_boundary[axis])) {
+                this.updateThrustPosition('target');
+            }
+            else {
+                this.object_moved['target'] = false;
+            }
         }
 
         let target_transform = Mat4.identity();
