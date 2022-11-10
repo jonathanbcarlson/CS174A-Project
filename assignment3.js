@@ -204,8 +204,21 @@ export class Assignment3 extends Scene {
     }
 
     move_target(context, program_state) {
+        let lower_boundary = {0: (-this.goal_width / 2) - 1, 1: -2};
+        let upper_boundary = {0: (this.goal_width / 2) + 1, 1: (this.goal_height / 2) + 2};
+
         if (this.object_moved['target']) {
-            this.updateThrustPosition('target');
+            // Assumption: next direction for target will never be z-dimension
+            let axis = this.next_direction['target'] === "left_right" ? 0 : 1;
+            let target = this.thrust_position['target'];
+            let delta = this.thrust['target'][axis];
+
+            if ((lower_boundary[axis] <= target[axis] + delta) && (target[axis] + delta <= upper_boundary[axis])) {
+                this.updateThrustPosition('target');
+            }
+            else {
+                this.object_moved['target'] = false;
+            }
         }
 
         let target_transform = Mat4.identity();
