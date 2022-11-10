@@ -36,7 +36,7 @@ export class Assignment3 extends Scene {
             'target': vec3(0, 0, 0),
             'ball_arrow': vec4(0, 0, 0),
         }
-        this.thrust_position = {
+        this.position = {
             'target': vec3(0, 0, 0),
             'ball_arrow': vec3(0, 0, 0),
             'ball': vec3(0, 0, 0),
@@ -198,7 +198,7 @@ export class Assignment3 extends Scene {
         }
 
         let axis = this.direction_to_axis[next_dir];
-        this.thrust_position[object_type][axis] += this.thrust[object_type][axis];
+        this.position[object_type][axis] += this.thrust[object_type][axis];
 
         this.object_moved[object_type] = false;
     }
@@ -214,8 +214,8 @@ export class Assignment3 extends Scene {
             .times(Mat4.scale(this.ball_radius, this.ball_radius, this.ball_radius));
 
         target_transform = target_transform
-            .times(Mat4.translation(this.thrust_position['target'][0],
-                this.thrust_position['target'][1], this.thrust_position['target'][2]));
+            .times(Mat4.translation(this.position['target'][0],
+                this.position['target'][1], this.position['target'][2]));
 
         this.shapes.circle.draw(context, program_state, target_transform, this.materials.target);
     }
@@ -286,7 +286,7 @@ export class Assignment3 extends Scene {
             ball_transform = ball_transform
                 .times(Mat4.translation(ball_x, ball_y, -ball_z));
 
-            this.thrust_position['ball'] = vec3(ball_x, ball_y, -ball_z);
+            this.position['ball'] = vec3(ball_x, ball_y, -ball_z);
 
             this.shapes.sphere4.draw(context, program_state, ball_transform, this.materials.ball);
             this.ball_time += 0.5;
@@ -294,8 +294,8 @@ export class Assignment3 extends Scene {
     }
 
     ball_target_collision_detection(ball_target_x_distance, ball_target_y_distance) {
-        let target_pos = this.thrust_position['target'];
-        let ball_pos = this.thrust_position['ball'];
+        let target_pos = this.position['target'];
+        let ball_pos = this.position['ball'];
         let ball_pos_x = ball_pos[0], ball_pos_y = ball_pos[1];
         let target_pos_x = target_pos[0], target_pos_y = target_pos[1];
         // visually the circle intersects ball if it's +/- ball_target_x_distance away
@@ -325,7 +325,6 @@ export class Assignment3 extends Scene {
             //       then the ball will go in the previously chosen direction
             this.have_determined_ball_v0 = false;
         }
-
     }
 
     display(context, program_state) {
