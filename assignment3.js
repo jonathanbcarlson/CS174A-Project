@@ -25,6 +25,7 @@ export class Assignment3 extends Scene {
 
         this.ball_radius = 0.8;
         this.ball_time = 0;
+        this.ball_time_since_last_bounce = 0;
         this.shoot_ball = false;
         this.have_determined_ball_v0 = false;
 
@@ -115,7 +116,7 @@ export class Assignment3 extends Scene {
             () => button_cb('target', 1, 'left_right'));
 
         this.key_triggered_button("Shoot ball", ["Enter"],
-            () => {this.shoot_ball = true; this.ball_time = 0});
+            () => {this.shoot_ball = true; this.ball_time = 0; this.ball_time_since_last_bounce = 0; this.have_determined_ball_v0 = false; this.not_bounced = 1});
     }
 
     make_goal(context, program_state, x) {
@@ -264,23 +265,29 @@ export class Assignment3 extends Scene {
                 this.have_determined_ball_v0 = true;
             }
 
+            let ball_initial_position_x = 0;
+            let ball_initial_position_y = 1;
+            let ball_initial_position_z = 8;
+
             let v0_x = this.ball_v0_x;
-            let ball_x = v0_x*this.ball_time;
+            let ball_x = v0_x*this.ball_time + ball_initial_position_x;
 
             let v0_z = this.ball_v0_z;
-            let ball_z = v0_z*this.ball_time;
+            let ball_z = v0_z*this.ball_time + ball_initial_position_z;
             // y = v0_y * t - 0.5 g t**2 where v0_y is the norm of the second row of ball_arrow_transform
             let v0_y = this.ball_v0_y;
+
+
 
             // as goal_height increases ball_y_scale should decrease
             // 0.1 is a good value for a goal_height of 10
             // 0.05 is a good value for a goal_height of 20
             // note that this doesn't allow the ball to hit the top corners but that's a rare case
-            let ball_y_scale = 0.1*(10/this.goal_height);
-            let ball_y = v0_y * this.ball_time - ball_y_scale * this.ball_time**2;
+            this.ball_y_scale = 0.1*(10/this.goal_height);
+            let ball_y = v0_y * this.ball_time_since_last_bounce - this.ball_y_scale * this.ball_time_since_last_bounce**2 + (this.not_bounced * ball_initial_position_y);
 
             ball_transform = ball_transform
-                .times(Mat4.translation(0, 0.9, 8))
+                .times(Mat4.translation(ball_initial_position_x, ball_initial_position_y,ball_initial_position_z))
                 .times(Mat4.scale(this.ball_radius, this.ball_radius, this.ball_radius));
 
             ball_transform = ball_transform
@@ -290,6 +297,7 @@ export class Assignment3 extends Scene {
 
             this.shapes.sphere4.draw(context, program_state, ball_transform, this.materials.ball);
             this.ball_time += 0.5;
+            this.ball_time_since_last_bounce += 0.5;
         }
     }
 
@@ -317,15 +325,21 @@ export class Assignment3 extends Scene {
             */
         } else if (intersects_on_z_axis) {
             console.log(target_pos, ball_pos, intersects_on_x_axis, intersects_on_y_axis, intersects_on_z_axis);
-        } else if (ball_pos[1] < -1) {
-            // less than -1 so then ball will below plane and player won't be able to see the ball move
-            // FIXME: the value -1 determines how quickly the new ball_arrow position
-            //       will be taken into account when the user presses Enter again
-            //       if it's too big say -5 then if the user moves the arrow before the ball gets to -5
-            //       then the ball will go in the previously chosen direction
-            this.have_determined_ball_v0 = false;
         }
 
+    }
+
+    ball_field_collision_detection() {
+        let ball_pos = this.thrust_position['ball'];
+        let ball_pos_x = ball_pos[0], ball_pos_y = ball_pos[1], ball_pos_z = ball_pos[2];
+
+        // If ball_pos_y <= 1, then the ball must bounce!
+        if(ball_pos_y < 1) {
+            let new_ball_velocity_y = -1 * (this.ball_y_scale * this.ball_time + this.ball_v0_y);
+            this.ball_time_since_last_bounce = 0;
+            this.not_bounced = 1;
+
+        }
     }
 
     display(context, program_state) {
@@ -346,7 +360,7 @@ export class Assignment3 extends Scene {
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 3)];
 
         let field_transform = Mat4.identity();
-        let field_dim = 20;
+        let field_dim = 100;
         field_transform = field_transform
             .times(Mat4.scale(field_dim,field_dim,field_dim))
             .times(Mat4.rotation(Math.PI/2, 1, 0, 0));
@@ -361,9 +375,13 @@ export class Assignment3 extends Scene {
 
         let ball_arrow_transform = this.draw_ball_arrow(context, program_state);
 
+        this.ball_field_collision_detection();
+
         this.move_ball(context, program_state, ball_arrow_transform);
 
         this.ball_target_collision_detection(2, 3);
+
+
     }
 }
 
