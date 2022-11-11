@@ -4,6 +4,8 @@ const {
     Vector, Vector3, vec, vec3, vec4, color, hex_color, Shader, Matrix, Mat4, Light, Shape, Material, Scene, Texture
 } = tiny;
 
+import {Text_Line} from "./examples/text-demo.js";
+
 export class Assignment3 extends Scene {
     constructor() {
         // constructor(): Scenes begin by populating initial values like the Shapes and Materials they'll need.
@@ -11,6 +13,7 @@ export class Assignment3 extends Scene {
 
         // At the beginning of our program, load one of each of these shape definitions onto the GPU.
         this.shapes = {
+            text: new Text_Line(35),
             single_arrow: new defs.Single_Arrow(),
             square: new defs.Square(),
             torus: new defs.Torus(40, 40),
@@ -56,20 +59,31 @@ export class Assignment3 extends Scene {
             'forward_backward': 2,
         }
 
+        this.max_score = 5;
+
+        this.score = {
+            "player1": 0,
+            "player2": 0,
+        }
+
+        // have player 1 start
+        this.currently_playing = {
+            "player1": true,
+            "player2": false
+        }
+
+        this.player1_color = hex_color("#ff0000");
+        this.player2_color = hex_color("#0000ff");
+
         const bump = new defs.Fake_Bump_Map(1);
         // *** Materials
         this.materials = {
-            test: new Material(new defs.Phong_Shader(),
-                {ambient: .4, diffusivity: .6, color: hex_color("#ffffff")}),
-            test2: new Material(new Gouraud_Shader(),
-                {ambient: .4, diffusivity: .6, color: hex_color("#992828")}),
-            ring: new Material(new Ring_Shader()),
             ball: new Material(new defs.Phong_Shader(),
                 {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#FFFFFF")}),
             target: new Material(new defs.Phong_Shader(),
                 {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#FF0000")}),
             ball_arrow: new Material(new defs.Phong_Shader(),
-                {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#FF00FF")}),
+                {ambient: 1, diffusivity: 1, specularity: 1}),
             field: new Material(new defs.Phong_Shader(),
                 {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#00FF00")}),
             goal_post: new Material(new defs.Phong_Shader(),
@@ -79,6 +93,10 @@ export class Assignment3 extends Scene {
             stadium_right: new Material(bump, {ambient: .5, texture: new Texture("assets/stadium_right.png")}),
             stadium_behind: new Material(bump, {ambient: .5, texture: new Texture("assets/stadium_behind.png")}),
             stadium_left: new Material(bump, {ambient: .5, texture: new Texture("assets/stadium_left.png")}),
+            score: new Material(new defs.Textured_Phong(1), {
+                ambient: 1, diffusivity: 0, specularity: 0,
+                texture: new Texture("assets/text.png")
+            })
         }
 
         this.initial_camera_location = Mat4.look_at(vec3(0, 10, 32), vec3(0, 0, 0), vec3(0, 1, 0));
@@ -246,7 +264,6 @@ export class Assignment3 extends Scene {
         // otherwise do parabolic with the initial y-thrust/ball_y_scale a function of the angle??
         let x_rotation_angle = this.position['ball_arrow'][2]/10;
         let z_rotation_angle = this.position['ball_arrow'][0]/10;
-        console.log('x_angle=', x_rotation_angle, 'z_angle=', z_rotation_angle)
 
         let determine_rotation_angle_and_update_position = (input_angle, angle_max, angle_min, axis) => {
             let angle = input_angle;
@@ -274,7 +291,13 @@ export class Assignment3 extends Scene {
             .times(Mat4.rotation(x_rotation_angle, 1, 0, 0))
             .times(Mat4.rotation(z_rotation_angle, 0, 0, 1));
 
-        this.shapes.single_arrow.draw(context, program_state, ball_arrow_transform, this.materials.ball_arrow);
+        let p1_mat = this.materials.ball_arrow.override({color: this.player1_color});
+        let p2_mat = this.materials.ball_arrow.override({color: this.player2_color});
+        if (this.currently_playing['player1']) {
+            this.shapes.single_arrow.draw(context, program_state, ball_arrow_transform, p1_mat);
+        } else {
+            this.shapes.single_arrow.draw(context, program_state, ball_arrow_transform, p2_mat);
+        }
         return ball_arrow_transform;
     }
 
@@ -344,9 +367,17 @@ export class Assignment3 extends Scene {
         // z is -18 since that's where the goal posts are
         let intersects_on_z_axis = Math.floor(ball_pos[2]) === -18;
         if (intersects_on_x_axis && intersects_on_y_axis && intersects_on_z_axis) {
-            // TODO: increment a score or something
-            console.log('COLLISION', target_pos, ball_pos);
-            alert('Nice shot!');
+
+            if (this.currently_playing['player1']) {
+                this.score['player1'] += 1;
+            } else {
+                this.score['player2'] += 1;
+            }
+
+            this.currently_playing['player1'] = !this.currently_playing['player1'];
+            this.currently_playing['player2'] = !this.currently_playing['player2'];
+
+            // TODO: add audio when player scores
             /*
             let a = new Audio('assets/audio/goal.m4a');
             // https://developer.mozilla.org/en-US/docs/Web/API/HTMLAudioElement/Audio
@@ -364,6 +395,25 @@ export class Assignment3 extends Scene {
             //       if it's too big say -5 then if the user moves the arrow before the ball gets to -5
             //       then the ball will go in the previously chosen direction
             this.have_determined_ball_v0 = false;
+        }
+    }
+
+    determine_if_game_over() {
+        // if either score is max_score reset scores
+        let reset_scores = false;
+        if (this.score['player1'] === this.max_score) {
+            // TODO: say good job player 1
+            alert('Good job player 1');
+            reset_scores = true;
+        } else if (this.score['player2'] === this.max_score) {
+            // TODO: say good job player 2
+            alert('Good job player 2');
+            reset_scores = true;
+        }
+
+        if (reset_scores) {
+            this.score['player1'] = 0;
+            this.score['player2'] = 0
         }
     }
 
@@ -403,6 +453,21 @@ export class Assignment3 extends Scene {
         this.move_ball(context, program_state, ball_arrow_transform);
 
         this.ball_target_collision_detection(2, 3);
+
+        let player1_score_transform = Mat4.identity().times(Mat4.translation(-3, 12, -8));
+
+        this.shapes.text.set_string(`${this.score['player1']}`, context.context);
+        this.shapes.text.draw(context, program_state, player1_score_transform,
+            this.materials.score.override({color: this.player1_color}));
+        let colon_transform = player1_score_transform.times(Mat4.translation(3, 0, 0));
+        this.shapes.text.set_string(':', context.context);
+        this.shapes.text.draw(context, program_state, colon_transform, this.materials.score);
+        let player2_score_transform = colon_transform.times(Mat4.translation(3, 0, 0));
+        this.shapes.text.set_string(`${this.score['player2']}`, context.context);
+        this.shapes.text.draw(context, program_state, player2_score_transform,
+            this.materials.score.override({color: this.player2_color}));
+
+        this.determine_if_game_over();
     }
 }
 
