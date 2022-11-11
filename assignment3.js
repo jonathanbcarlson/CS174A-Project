@@ -398,6 +398,21 @@ export class Assignment3 extends Scene {
         }
     }
 
+    update_score(context, program_state) {
+        let player1_score_transform = Mat4.identity().times(Mat4.translation(-3, 12, -8));
+
+        this.shapes.text.set_string(`${this.score['player1']}`, context.context);
+        this.shapes.text.draw(context, program_state, player1_score_transform,
+            this.materials.score.override({color: this.player1_color}));
+        let colon_transform = player1_score_transform.times(Mat4.translation(3, 0, 0));
+        this.shapes.text.set_string(':', context.context);
+        this.shapes.text.draw(context, program_state, colon_transform, this.materials.score);
+        let player2_score_transform = colon_transform.times(Mat4.translation(3, 0, 0));
+        this.shapes.text.set_string(`${this.score['player2']}`, context.context);
+        this.shapes.text.draw(context, program_state, player2_score_transform,
+            this.materials.score.override({color: this.player2_color}));
+    }
+
     determine_if_game_over() {
         // if either score is max_score reset scores
         let reset_scores = false;
@@ -454,18 +469,7 @@ export class Assignment3 extends Scene {
 
         this.ball_target_collision_detection(2, 3);
 
-        let player1_score_transform = Mat4.identity().times(Mat4.translation(-3, 12, -8));
-
-        this.shapes.text.set_string(`${this.score['player1']}`, context.context);
-        this.shapes.text.draw(context, program_state, player1_score_transform,
-            this.materials.score.override({color: this.player1_color}));
-        let colon_transform = player1_score_transform.times(Mat4.translation(3, 0, 0));
-        this.shapes.text.set_string(':', context.context);
-        this.shapes.text.draw(context, program_state, colon_transform, this.materials.score);
-        let player2_score_transform = colon_transform.times(Mat4.translation(3, 0, 0));
-        this.shapes.text.set_string(`${this.score['player2']}`, context.context);
-        this.shapes.text.draw(context, program_state, player2_score_transform,
-            this.materials.score.override({color: this.player2_color}));
+        this.update_score(context, program_state);
 
         this.determine_if_game_over();
     }
