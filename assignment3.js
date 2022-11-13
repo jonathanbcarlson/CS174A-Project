@@ -120,10 +120,7 @@ export class Assignment3 extends Scene {
             for (const id of ids) {
                 let elem = document.getElementById(id);
                 if (elem !== null) {
-                    console.log(`removed ${id}`);
                     elem.remove();
-                } else {
-                    console.log(`no ${id} exists`);
                 }
             }
         }
@@ -185,7 +182,7 @@ export class Assignment3 extends Scene {
             () => button_cb('ball_arrow', -1, 'left_right'));
 
         this.key_triggered_button("Shoot ball", ["Enter"],
-            () => {this.shoot_ball = true; this.ball_time = 0});
+            () => {this.shoot_ball = true; this.ball_time = 0;});
 
     }
 
@@ -427,8 +424,9 @@ export class Assignment3 extends Scene {
     }
 
     update_score(context, program_state) {
-        let player1_score_transform = Mat4.identity().times(Mat4.translation(-3, 12, -8));
+        // TODO: only show two scores if in two_player mode
 
+        let player1_score_transform = Mat4.identity().times(Mat4.translation(-3, 12, -8));
         this.shapes.text.set_string(`${this.score['player1']}`, context.context);
         this.shapes.text.draw(context, program_state, player1_score_transform,
             this.materials.score.override({color: this.player1_color}));
@@ -440,6 +438,10 @@ export class Assignment3 extends Scene {
         this.shapes.text.draw(context, program_state, player2_score_transform,
             this.materials.score.override({color: this.player2_color}));
 
+        // FIXME: fix this so obvious to user what mode they are in
+        //        eg two player is differently colored score
+        //        one player practice is target
+        //        single player keeper is just a keeper
         let mode_transform = Mat4.identity().times(Mat4.translation(-15, 2, 0));
         this.shapes.text.set_string(`${this.mode}`, context.context);
         this.shapes.text.draw(context, program_state, mode_transform, this.materials.score);
@@ -475,8 +477,11 @@ export class Assignment3 extends Scene {
         let intersects_on_y_axis = Math.abs(Math.floor(ball_pos_y) - object_pos_y) <= ball_object_y_distance;
         // z is -18 since that's where the goal posts are
         let intersects_on_z_axis = Math.floor(ball_pos[2]) === -18;
-        if (intersects_on_x_axis && intersects_on_y_axis && intersects_on_z_axis) {
-
+        this.ball_intersects_goal_on_z_axis = intersects_on_z_axis;
+        this.ball_collision_success = intersects_on_x_axis && intersects_on_y_axis && intersects_on_z_axis
+        if (this.ball_collision_success) {
+            // TODO: only increment two scores if two players
+            // if (this.mode === 'two_player') {}
             if (this.currently_playing['player1']) {
                 this.score['player1'] += 1;
             } else {
@@ -505,6 +510,41 @@ export class Assignment3 extends Scene {
             //       then the ball will go in the previously chosen direction
             this.have_determined_ball_v0 = false;
         }
+    }
+
+    randomly_place_target(context, program_state) {
+
+        let object_type = 'target';
+
+        // TODO: determine if we should move target randomly every time
+        //       even if they miss (this.ball_intersects_goal_on_z_axis)
+        //       OR just move target if they get a collision (this.ball_collision_success)
+        if (this.ball_intersects_goal_on_z_axis) {
+            let lower_boundary = {0: (-this.goal_width / 2) - 1, 1: -2};
+            let upper_boundary = {0: (this.goal_width / 2) + 1, 1: (this.goal_height / 2) + 2};
+
+            // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random#getting_a_random_integer_between_two_values_inclusive
+            let getRandomIntInclusive = (min, max) => {
+                min = Math.ceil(min);
+                max = Math.floor(max);
+                return Math.floor(Math.random() * (max - min + 1) + min);
+            }
+
+            let pos_x = getRandomIntInclusive(lower_boundary[0], upper_boundary[0])
+            let pos_y = getRandomIntInclusive(lower_boundary[1], upper_boundary[1])
+            this.position[object_type] = vec3(pos_x, pos_y, 0);
+        }
+
+        let position_translation = Mat4.translation(this.position[object_type][0],
+            this.position[object_type][1], this.position[object_type][2]);
+
+        let object_transform = Mat4.identity();
+        object_transform = object_transform
+            .times(Mat4.translation(0, 3, this.goal_z))
+            .times(Mat4.scale(this.ball_radius, this.ball_radius, this.ball_radius));
+
+        object_transform = object_transform.times(position_translation);
+        this.shapes.circle.draw(context, program_state, object_transform, this.materials.target);
     }
 
     display(context, program_state) {
@@ -544,6 +584,7 @@ export class Assignment3 extends Scene {
         // TODO: randomly place target somewhere in goal)
         if (this.mode === 'practice') {
             // this.move_object('target', context, program_state);
+            this.randomly_place_target(context, program_state);
             this.ball_object_collision_detection('target',2, 3);
         }
         // Single player where you against a moving AI keeper
