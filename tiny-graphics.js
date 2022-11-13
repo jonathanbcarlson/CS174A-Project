@@ -1370,6 +1370,7 @@ const Scene = tiny.Scene =
         // can either contribute more drawn shapes or provide some additional tool to the end
         // user via drawing additional control panel buttons or live text readouts.
         constructor() {
+            this.clear_move_keeper_buttons = false;
             this.children = [];
             // Set up how we'll handle key presses for the scene's control panel:
             const callback_behavior = (callback, event) => {
@@ -1400,31 +1401,37 @@ const Scene = tiny.Scene =
             // key_triggered_button():  Trigger any scene behavior by assigning
             // a key shortcut and a labelled HTML button to fire any callback
             // function/method of a Scene.  Optional release callback as well.
-            const button = parent.appendChild(document.createElement("button"));
-            button.default_color = button.style.backgroundColor = color;
-            const press = () => {
-                    Object.assign(button.style, {
-                        'background-color': color,
-                        'z-index': "1", 'transform': "scale(1.5)"
-                    });
-                    callback.call(recipient);
-                },
-                release = () => {
-                    Object.assign(button.style, {
-                        'background-color': button.default_color,
-                        'z-index': "0", 'transform': "scale(1)"
-                    });
-                    if (!release_event) return;
-                    release_event.call(recipient);
-                };
-            const key_name = shortcut_combination.join('+').split(" ").join("Space");
-            button.textContent = "(" + key_name + ") " + description;
-            button.addEventListener("mousedown", press);
-            button.addEventListener("mouseup", release);
-            button.addEventListener("touchstart", press, {passive: true});
-            button.addEventListener("touchend", release, {passive: true});
-            if (!shortcut_combination) return;
-            this.key_controls.add(shortcut_combination, press, release);
+
+            if (!this.clear_move_keeper_buttons) {
+
+                let b = document.createElement("button");
+                b.id = shortcut_combination;
+                const button = parent.appendChild(b);
+                button.default_color = button.style.backgroundColor = color;
+                const press = () => {
+                        Object.assign(button.style, {
+                            'background-color': color,
+                            'z-index': "1", 'transform': "scale(1.5)"
+                        });
+                        callback.call(recipient);
+                    },
+                    release = () => {
+                        Object.assign(button.style, {
+                            'background-color': button.default_color,
+                            'z-index': "0", 'transform': "scale(1)"
+                        });
+                        if (!release_event) return;
+                        release_event.call(recipient);
+                    };
+                const key_name = shortcut_combination.join('+').split(" ").join("Space");
+                button.textContent = "(" + key_name + ") " + description;
+                button.addEventListener("mousedown", press);
+                button.addEventListener("mouseup", release);
+                button.addEventListener("touchstart", press, {passive: true});
+                button.addEventListener("touchend", release, {passive: true});
+                if (!shortcut_combination) return;
+                this.key_controls.add(shortcut_combination, press, release);
+            }
         }
 
         // To use class Scene, override at least one of the below functions,

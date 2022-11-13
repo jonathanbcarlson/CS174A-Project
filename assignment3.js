@@ -16,8 +16,6 @@ export class Assignment3 extends Scene {
             text: new Text_Line(35),
             single_arrow: new defs.Single_Arrow(),
             square: new defs.Square(),
-            torus: new defs.Torus(40, 40),
-            torus2: new defs.Torus(3, 15),
             sphere1: new (defs.Subdivision_Sphere.prototype.make_flat_shaded_version())(1),
             sphere2: new (defs.Subdivision_Sphere.prototype.make_flat_shaded_version())(2),
             sphere3: new defs.Subdivision_Sphere(3),
@@ -27,6 +25,7 @@ export class Assignment3 extends Scene {
         };
 
         this.ball_radius = 0.8;
+        this.keeper_height = 2;
         this.ball_time = 0;
         this.shoot_ball = false;
         this.have_determined_ball_v0 = false;
@@ -37,18 +36,22 @@ export class Assignment3 extends Scene {
 
         this.thrust = {
             'target': vec3(0, 0, 0),
+            'keeper': vec3(0, 0, 0),
             'ball_arrow': vec4(0, 0, 0),
         }
         this.position = {
             'target': vec3(0, 0, 0),
+            'keeper': vec3(0, 0, 0),
             'ball_arrow': vec3(0, 0, 0),
             'ball': vec3(0, 0, 0),
         };
         this.next_direction = {
             'target': null,
+            'keeper': null,
             'ball_arrow': null
         };
         this.object_moved = {
+            'keeper': false,
             'target': false,
             'ball_arrow': false
         };
@@ -75,6 +78,10 @@ export class Assignment3 extends Scene {
         this.player1_color = hex_color("#ff0000");
         this.player2_color = hex_color("#0000ff");
 
+        this.mode = 'single_player_keeper';
+        // init to be compatible with mode
+        this.button_description = 'Move Keeper';
+
         const bump = new defs.Fake_Bump_Map(1);
         // *** Materials
         this.materials = {
@@ -96,13 +103,67 @@ export class Assignment3 extends Scene {
             score: new Material(new defs.Textured_Phong(1), {
                 ambient: 1, diffusivity: 0, specularity: 0,
                 texture: new Texture("assets/text.png")
-            })
+            }),
+            keeper: new Material(new defs.Textured_Phong(1), {
+                ambient: 1, diffusivity: 0, specularity: 0, color: hex_color("#ffff00")
+            }),
         }
 
         this.initial_camera_location = Mat4.look_at(vec3(0, 10, 32), vec3(0, 0, 0), vec3(0, 1, 0));
     }
 
     make_control_panel() {
+
+
+        let remove_buttons = (ids) => {
+            console.log(ids);
+            for (const id of ids) {
+                let elem = document.getElementById(id);
+                if (elem !== null) {
+                    console.log(`removed ${id}`);
+                    elem.remove();
+                } else {
+                    console.log(`no ${id} exists`);
+                }
+            }
+        }
+
+        let move_keeper_buttons = ['i', 'j', 'l', 'k'];
+
+        let update_mode = (mode) => {
+            this.mode = mode;
+            if (mode === 'two_player') {
+                this.button_description = 'Move Keeper'
+                this.object_type = 'keeper';
+                // remove previously existing buttons
+                remove_buttons(move_keeper_buttons);
+                this.key_triggered_button(`${this.button_description} Left`, ["j"],
+                    () => button_cb(this.object_type, -1, 'left_right'));
+                this.key_triggered_button(`${this.button_description} Right`, ["l"],
+                    () => button_cb(this.object_type, 1, 'left_right'));
+                // TODO: figure out if keeper should be able to jump
+                this.key_triggered_button(`${this.button_description} Up`, ["i"],
+                    () => button_cb(this.object_type, 1, 'up_down'));
+                this.key_triggered_button(`${this.button_description} Down`, ["k"],
+                    () => button_cb(this.object_type, -1, 'up_down'));
+            } else if (mode === 'practice') {
+                this.object_type = 'target';
+                remove_buttons(move_keeper_buttons);
+            } else if (mode === 'single_player_keeper') {
+                this.object_type = 'keeper';
+                remove_buttons(move_keeper_buttons);
+            }
+        }
+
+        this.key_triggered_button("Go to Practice mode", ["p"],
+            () => {update_mode('practice')});
+
+        this.key_triggered_button("Go to Single Player mode", ["1"],
+            () => {update_mode('single_player_keeper')});
+
+        this.key_triggered_button("Go to Two Player mode", ["2"],
+            () => {update_mode('two_player')});
+
         // object_type is either ball or target
         // thrust_val is the value for the thrust
         // direction is the axis (0 for left_right, 1 for up_down, 2 for forward_backward)
@@ -123,17 +184,9 @@ export class Assignment3 extends Scene {
         this.key_triggered_button("Move arrow Right", ["ArrowRight"],
             () => button_cb('ball_arrow', -1, 'left_right'));
 
-        this.key_triggered_button("Move target Up", ["i"],
-            () => button_cb('target', 1, 'up_down'));
-        this.key_triggered_button("Move target Down", ["k"],
-            () => button_cb('target', -1, 'up_down'));
-        this.key_triggered_button("Move target Left", ["j"],
-            () => button_cb('target', -1, 'left_right'));
-        this.key_triggered_button("Move target Right", ["l"],
-            () => button_cb('target', 1, 'left_right'));
-
         this.key_triggered_button("Shoot ball", ["Enter"],
             () => {this.shoot_ball = true; this.ball_time = 0});
+
     }
 
     make_goal(context, program_state, x) {
@@ -221,34 +274,52 @@ export class Assignment3 extends Scene {
         this.object_moved[object_type] = false;
     }
 
-    move_target(context, program_state) {
+    player_moved_object(object_type, context, program_state) {
         let lower_boundary = {0: (-this.goal_width / 2) - 1, 1: -2};
         let upper_boundary = {0: (this.goal_width / 2) + 1, 1: (this.goal_height / 2) + 2};
 
-        if (this.object_moved['target']) {
+        if (this.object_moved[object_type]) {
             // Assumption: next direction for target will never be z-dimension
-            let axis = this.next_direction['target'] === "left_right" ? 0 : 1;
-            let target = this.position['target'];
-            let delta = this.thrust['target'][axis];
+            let axis = this.next_direction[object_type] === "left_right" ? 0 : 1;
+            let position = this.position[object_type];
+            let delta = this.thrust[object_type][axis];
 
-            if ((lower_boundary[axis] <= target[axis] + delta) && (target[axis] + delta <= upper_boundary[axis])) {
-                this.updateThrustPosition('target');
+            if ((lower_boundary[axis] <= position[axis] + delta) && (position[axis] + delta <= upper_boundary[axis])) {
+                this.updateThrustPosition(object_type);
             }
             else {
-                this.object_moved['target'] = false;
+                this.object_moved[object_type] = false;
             }
         }
 
-        let target_transform = Mat4.identity();
-        target_transform = target_transform
-            .times(Mat4.translation(0,3, this.goal_z))
-            .times(Mat4.scale(this.ball_radius, this.ball_radius, this.ball_radius));
+        let position_translation = Mat4.translation(this.position[object_type][0],
+            this.position[object_type][1], this.position[object_type][2]);
 
-        target_transform = target_transform
-            .times(Mat4.translation(this.position['target'][0],
-                this.position['target'][1], this.position['target'][2]));
+        if (object_type === 'target') {
+            let object_transform = Mat4.identity();
+            object_transform = object_transform
+                .times(Mat4.translation(0,3, this.goal_z))
+                .times(Mat4.scale(this.ball_radius, this.ball_radius, this.ball_radius));
 
-        this.shapes.circle.draw(context, program_state, target_transform, this.materials.target);
+            object_transform = object_transform.times(position_translation);
+            this.shapes.circle.draw(context, program_state, object_transform, this.materials[object_type]);
+        } else if (object_type === 'keeper') {
+            let keeper_transform = Mat4.identity();
+            keeper_transform = keeper_transform
+                .times(Mat4.translation(0,3, this.goal_z))
+                .times(Mat4.scale(this.ball_radius, this.keeper_height, this.ball_radius));
+
+            keeper_transform = keeper_transform
+                .times(position_translation);
+
+            this.shapes.square.draw(context, program_state, keeper_transform, this.materials.keeper);
+
+            let keeper_head_transform = Mat4.identity();
+            keeper_head_transform = keeper_head_transform
+                .times(Mat4.translation(0, this.keeper_height+4, this.goal_z))
+                .times(position_translation);
+            this.shapes.circle.draw(context, program_state, keeper_head_transform, this.materials.target);
+        }
     }
 
     draw_ball_arrow (context, program_state) {
@@ -355,15 +426,53 @@ export class Assignment3 extends Scene {
         }
     }
 
-    ball_target_collision_detection(ball_target_x_distance, ball_target_y_distance) {
-        let target_pos = this.position['target'];
+    update_score(context, program_state) {
+        let player1_score_transform = Mat4.identity().times(Mat4.translation(-3, 12, -8));
+
+        this.shapes.text.set_string(`${this.score['player1']}`, context.context);
+        this.shapes.text.draw(context, program_state, player1_score_transform,
+            this.materials.score.override({color: this.player1_color}));
+        let colon_transform = player1_score_transform.times(Mat4.translation(3, 0, 0));
+        this.shapes.text.set_string(':', context.context);
+        this.shapes.text.draw(context, program_state, colon_transform, this.materials.score);
+        let player2_score_transform = colon_transform.times(Mat4.translation(3, 0, 0));
+        this.shapes.text.set_string(`${this.score['player2']}`, context.context);
+        this.shapes.text.draw(context, program_state, player2_score_transform,
+            this.materials.score.override({color: this.player2_color}));
+
+        let mode_transform = Mat4.identity().times(Mat4.translation(-15, 2, 0));
+        this.shapes.text.set_string(`${this.mode}`, context.context);
+        this.shapes.text.draw(context, program_state, mode_transform, this.materials.score);
+    }
+
+    determine_if_game_over() {
+        // if either score is max_score reset scores
+        let reset_scores = false;
+        if (this.score['player1'] === this.max_score) {
+            // TODO: say good job player 1
+            alert('Good job player 1');
+            reset_scores = true;
+        } else if (this.score['player2'] === this.max_score) {
+            // TODO: say good job player 2
+            alert('Good job player 2');
+            reset_scores = true;
+        }
+
+        if (reset_scores) {
+            this.score['player1'] = 0;
+            this.score['player2'] = 0
+        }
+    }
+
+    ball_object_collision_detection (object, ball_object_x_distance, ball_object_y_distance) {
+        let object_pos = this.position[object];
         let ball_pos = this.position['ball'];
         let ball_pos_x = ball_pos[0], ball_pos_y = ball_pos[1];
-        let target_pos_x = target_pos[0], target_pos_y = target_pos[1];
-        // visually the circle intersects ball if it's +/- ball_target_x_distance away
-        let intersects_on_x_axis = Math.abs(ball_pos_x - target_pos_x) <= ball_target_x_distance;
+        let object_pos_x = object_pos[0], object_pos_y = object_pos[1];
+        // visually the circle intersects ball if it's +/- ball_object_x_distance away
+        let intersects_on_x_axis = Math.abs(ball_pos_x - object_pos_x) <= ball_object_x_distance;
         // same for y (height)
-        let intersects_on_y_axis = Math.abs(Math.floor(ball_pos_y) - target_pos_y) <= ball_target_y_distance;
+        let intersects_on_y_axis = Math.abs(Math.floor(ball_pos_y) - object_pos_y) <= ball_object_y_distance;
         // z is -18 since that's where the goal posts are
         let intersects_on_z_axis = Math.floor(ball_pos[2]) === -18;
         if (intersects_on_x_axis && intersects_on_y_axis && intersects_on_z_axis) {
@@ -387,7 +496,7 @@ export class Assignment3 extends Scene {
             });
             */
         } else if (intersects_on_z_axis) {
-            console.log(target_pos, ball_pos, intersects_on_x_axis, intersects_on_y_axis, intersects_on_z_axis);
+            console.log(object_pos, ball_pos, intersects_on_x_axis, intersects_on_y_axis, intersects_on_z_axis);
         } else if (ball_pos[1] < -1) {
             // less than -1 so then ball will below plane and player won't be able to see the ball move
             // FIXME: the value -1 determines how quickly the new ball_arrow position
@@ -395,40 +504,6 @@ export class Assignment3 extends Scene {
             //       if it's too big say -5 then if the user moves the arrow before the ball gets to -5
             //       then the ball will go in the previously chosen direction
             this.have_determined_ball_v0 = false;
-        }
-    }
-
-    update_score(context, program_state) {
-        let player1_score_transform = Mat4.identity().times(Mat4.translation(-3, 12, -8));
-
-        this.shapes.text.set_string(`${this.score['player1']}`, context.context);
-        this.shapes.text.draw(context, program_state, player1_score_transform,
-            this.materials.score.override({color: this.player1_color}));
-        let colon_transform = player1_score_transform.times(Mat4.translation(3, 0, 0));
-        this.shapes.text.set_string(':', context.context);
-        this.shapes.text.draw(context, program_state, colon_transform, this.materials.score);
-        let player2_score_transform = colon_transform.times(Mat4.translation(3, 0, 0));
-        this.shapes.text.set_string(`${this.score['player2']}`, context.context);
-        this.shapes.text.draw(context, program_state, player2_score_transform,
-            this.materials.score.override({color: this.player2_color}));
-    }
-
-    determine_if_game_over() {
-        // if either score is max_score reset scores
-        let reset_scores = false;
-        if (this.score['player1'] === this.max_score) {
-            // TODO: say good job player 1
-            alert('Good job player 1');
-            reset_scores = true;
-        } else if (this.score['player2'] === this.max_score) {
-            // TODO: say good job player 2
-            alert('Good job player 2');
-            reset_scores = true;
-        }
-
-        if (reset_scores) {
-            this.score['player1'] = 0;
-            this.score['player2'] = 0
         }
     }
 
@@ -461,13 +536,26 @@ export class Assignment3 extends Scene {
 
         this.make_goal(context, program_state, 0);
 
-        this.move_target(context, program_state);
-
         let ball_arrow_transform = this.draw_ball_arrow(context, program_state);
 
         this.move_ball(context, program_state, ball_arrow_transform);
 
-        this.ball_target_collision_detection(2, 3);
+        // Practice mode where you aim for a randomly placed target
+        // TODO: randomly place target somewhere in goal)
+        if (this.mode === 'practice') {
+            // this.move_object('target', context, program_state);
+            this.ball_object_collision_detection('target',2, 3);
+        }
+        // Single player where you against a moving AI keeper
+        else if (this.mode === 'single_player_keeper') {
+            // this.move_object('keeper', context, program_state);
+            this.ball_object_collision_detection('keeper',2, 3);
+        }
+        // Two player mode where one player is goalie and the other player shoots the ball
+        else if (this.mode === 'two_player') {
+            // TODO
+            this.player_moved_object('keeper', context, program_state);
+        }
 
         this.update_score(context, program_state);
 
