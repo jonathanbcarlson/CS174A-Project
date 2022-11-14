@@ -314,7 +314,15 @@ export class Assignment3 extends Scene {
             keeper_head_transform = keeper_head_transform
                 .times(Mat4.translation(0, this.keeper_height+4, this.goal_z))
                 .times(position_translation);
-            this.shapes.circle.draw(context, program_state, keeper_head_transform, this.materials.target);
+
+            // have keeper head color be the keeper's player color
+            let keeper_head_color = this.player1_color;
+            if (this.currently_playing['player1']) {
+                keeper_head_color = this.player2_color;
+            }
+
+            this.shapes.circle.draw(context, program_state, keeper_head_transform,
+                this.materials.target.override({color: keeper_head_color}));
         }
     }
 
