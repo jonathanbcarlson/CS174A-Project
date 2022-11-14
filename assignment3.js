@@ -78,6 +78,7 @@ export class Assignment3 extends Scene {
         this.player1_color = hex_color("#ff0000");
         this.player2_color = hex_color("#0000ff");
 
+        // TODO: need to implement single_player_keeper
         this.mode = 'single_player_keeper';
         // init to be compatible with mode
         this.button_description = 'Move Keeper';
@@ -113,7 +114,6 @@ export class Assignment3 extends Scene {
     }
 
     make_control_panel() {
-
 
         let remove_buttons = (ids) => {
             for (const id of ids) {
@@ -289,8 +289,6 @@ export class Assignment3 extends Scene {
             } else {
                 lower_boundary = {0: (-this.goal_width / 2) - 1, 1: 0};
                 upper_boundary = {0: (this.goal_width / 2) + 1, 1: 2};
-                console.log(axis, ' lower boundary', lower_boundary[axis], 'upper boundary', upper_boundary[axis],
-                    'pos + delta', position[axis] + delta);
 
                 if ((lower_boundary[axis] <= position[axis] + delta) && (position[axis] + delta <= upper_boundary[axis])) {
                     this.updateThrustPosition(object_type);
@@ -508,7 +506,10 @@ export class Assignment3 extends Scene {
             intersects_on_x_axis = Math.abs(ball_pos_x - object_pos_x) <= ball_object_x_distance;
             // same for y (height)
             // keeper_height + keeper_head_height = 6 and visually ball should be one above it so 7
-            intersects_on_y_axis = Math.floor(ball_pos_y) <= 7;
+            // also need to account for if keeper is in the airq
+            intersects_on_y_axis = Math.ceil(ball_pos_y) <= 7
+                || (Math.ceil(ball_pos_y) >= 9 && object_pos_y === 2)
+                || (Math.ceil(ball_pos_y) >= 8 && object_pos_y === 1);
             // z is -18 since that's where the goal posts are
             intersects_on_z_axis = Math.floor(ball_pos[2]) === -18;
             this.ball_intersects_goal_on_z_axis = intersects_on_z_axis;
