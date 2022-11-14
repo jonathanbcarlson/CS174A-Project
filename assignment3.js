@@ -280,11 +280,23 @@ export class Assignment3 extends Scene {
             let position = this.position[object_type];
             let delta = this.thrust[object_type][axis];
 
-            if ((lower_boundary[axis] <= position[axis] + delta) && (position[axis] + delta <= upper_boundary[axis])) {
-                this.updateThrustPosition(object_type);
-            }
-            else {
-                this.object_moved[object_type] = false;
+            if (object_type === 'target') {
+                if ((lower_boundary[axis] <= position[axis] + delta) && (position[axis] + delta <= upper_boundary[axis])) {
+                    this.updateThrustPosition(object_type);
+                } else {
+                    this.object_moved[object_type] = false;
+                }
+            } else {
+                lower_boundary = {0: (-this.goal_width / 2) - 1, 1: 0};
+                upper_boundary = {0: (this.goal_width / 2) + 1, 1: 2};
+                console.log(axis, ' lower boundary', lower_boundary[axis], 'upper boundary', upper_boundary[axis],
+                    'pos + delta', position[axis] + delta);
+
+                if ((lower_boundary[axis] <= position[axis] + delta) && (position[axis] + delta <= upper_boundary[axis])) {
+                    this.updateThrustPosition(object_type);
+                } else {
+                    this.object_moved[object_type] = false;
+                }
             }
         }
 
@@ -302,7 +314,7 @@ export class Assignment3 extends Scene {
         } else if (object_type === 'keeper') {
             let keeper_transform = Mat4.identity();
             keeper_transform = keeper_transform
-                .times(Mat4.translation(0,3, this.goal_z))
+                .times(Mat4.translation(0,2, this.goal_z))
                 .times(Mat4.scale(this.ball_radius, this.keeper_height, this.ball_radius))
                 .times(position_translation);
 
@@ -492,9 +504,6 @@ export class Assignment3 extends Scene {
             this.ball_collision_success = intersects_on_x_axis && intersects_on_y_axis && intersects_on_z_axis
         } else {
             // otherwise want ball to (not) hit goalkeeper
-            if (ball_pos[2] > -1) {
-                console.log(object_pos, ball_pos);
-            }
             // visually the circle intersects ball if it's +/- ball_object_x_distance away
             intersects_on_x_axis = Math.abs(ball_pos_x - object_pos_x) <= ball_object_x_distance;
             // same for y (height)
@@ -502,10 +511,6 @@ export class Assignment3 extends Scene {
             intersects_on_y_axis = Math.floor(ball_pos_y) <= 7;
             // z is -18 since that's where the goal posts are
             intersects_on_z_axis = Math.floor(ball_pos[2]) === -18;
-            if (intersects_on_z_axis) {
-                console.log(Math.floor(ball_pos_y));
-                console.log(intersects_on_x_axis, intersects_on_y_axis, intersects_on_z_axis)
-            }
             this.ball_intersects_goal_on_z_axis = intersects_on_z_axis;
             this.ball_collision_success = intersects_on_x_axis && intersects_on_y_axis && intersects_on_z_axis
         }
