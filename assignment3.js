@@ -116,7 +116,6 @@ export class Assignment3 extends Scene {
 
 
         let remove_buttons = (ids) => {
-            console.log(ids);
             for (const id of ids) {
                 let elem = document.getElementById(id);
                 if (elem !== null) {
@@ -423,9 +422,14 @@ export class Assignment3 extends Scene {
         }
     }
 
-    update_score(context, program_state) {
-        // TODO: only show two scores if in two_player mode
+    update_one_player_score(context, program_state) {
+        let player1_score_transform = Mat4.identity().times(Mat4.translation(-5, 12, -8));
+        this.shapes.text.set_string(`Score: ${this.score['player1']}`, context.context);
+        this.shapes.text.draw(context, program_state, player1_score_transform,
+            this.materials.score.override({color: this.player1_color}));
+    }
 
+    update_two_player_score(context, program_state) {
         let player1_score_transform = Mat4.identity().times(Mat4.translation(-3, 12, -8));
         this.shapes.text.set_string(`${this.score['player1']}`, context.context);
         this.shapes.text.draw(context, program_state, player1_score_transform,
@@ -437,14 +441,6 @@ export class Assignment3 extends Scene {
         this.shapes.text.set_string(`${this.score['player2']}`, context.context);
         this.shapes.text.draw(context, program_state, player2_score_transform,
             this.materials.score.override({color: this.player2_color}));
-
-        // FIXME: fix this so obvious to user what mode they are in
-        //        eg two player is differently colored score
-        //        one player practice is target
-        //        single player keeper is just a keeper
-        let mode_transform = Mat4.identity().times(Mat4.translation(-15, 2, 0));
-        this.shapes.text.set_string(`${this.mode}`, context.context);
-        this.shapes.text.draw(context, program_state, mode_transform, this.materials.score);
     }
 
     determine_if_game_over() {
@@ -471,26 +467,44 @@ export class Assignment3 extends Scene {
         let ball_pos = this.position['ball'];
         let ball_pos_x = ball_pos[0], ball_pos_y = ball_pos[1];
         let object_pos_x = object_pos[0], object_pos_y = object_pos[1];
-        // visually the circle intersects ball if it's +/- ball_object_x_distance away
-        let intersects_on_x_axis = Math.abs(ball_pos_x - object_pos_x) <= ball_object_x_distance;
-        // same for y (height)
-        let intersects_on_y_axis = Math.abs(Math.floor(ball_pos_y) - object_pos_y) <= ball_object_y_distance;
-        // z is -18 since that's where the goal posts are
-        let intersects_on_z_axis = Math.floor(ball_pos[2]) === -18;
-        this.ball_intersects_goal_on_z_axis = intersects_on_z_axis;
-        this.ball_collision_success = intersects_on_x_axis && intersects_on_y_axis && intersects_on_z_axis
-        if (this.ball_collision_success) {
-            // TODO: only increment two scores if two players
-            // if (this.mode === 'two_player') {}
-            if (this.currently_playing['player1']) {
-                this.score['player1'] += 1;
-            } else {
-                this.score['player2'] += 1;
+
+        let intersects_on_x_axis = false;
+        let intersects_on_y_axis = false;
+        let intersects_on_z_axis = false;
+
+        // want ball to hit target in practice mode
+        if (this.mode === 'practice') {
+            // visually the circle intersects ball if it's +/- ball_object_x_distance away
+            intersects_on_x_axis = Math.abs(ball_pos_x - object_pos_x) <= ball_object_x_distance;
+            // same for y (height)
+            intersects_on_y_axis = Math.abs(Math.floor(ball_pos_y) - object_pos_y) <= ball_object_y_distance;
+            // z is -18 since that's where the goal posts are
+            intersects_on_z_axis = Math.floor(ball_pos[2]) === -18;
+            this.ball_intersects_goal_on_z_axis = intersects_on_z_axis;
+            this.ball_collision_success = intersects_on_x_axis && intersects_on_y_axis && intersects_on_z_axis
+        } else {
+            // otherwise want ball to (not) hit goalkeeper
+            if (ball_pos[2] > -1) {
+                console.log(object_pos, ball_pos);
             }
+            // visually the circle intersects ball if it's +/- ball_object_x_distance away
+            intersects_on_x_axis = Math.abs(ball_pos_x - object_pos_x) <= ball_object_x_distance;
+            // same for y (height)
+            intersects_on_y_axis = Math.floor(ball_pos_y) <= 7;
+            // z is -18 since that's where the goal posts are
+            intersects_on_z_axis = Math.floor(ball_pos[2]) === -18;
+            if (intersects_on_z_axis) {
+                console.log(Math.floor(ball_pos_y));
+                console.log(intersects_on_x_axis, intersects_on_y_axis, intersects_on_z_axis)
+            }
+            this.ball_intersects_goal_on_z_axis = intersects_on_z_axis;
+            this.ball_collision_success = intersects_on_x_axis && intersects_on_y_axis && intersects_on_z_axis
+        }
 
-            this.currently_playing['player1'] = !this.currently_playing['player1'];
-            this.currently_playing['player2'] = !this.currently_playing['player2'];
-
+        if (this.ball_collision_success) {
+            if (this.mode !== 'two_player') {
+                this.score['player1'] += 1;
+            }
             // TODO: add audio when player scores
             /*
             let a = new Audio('assets/audio/goal.m4a');
@@ -500,8 +514,20 @@ export class Assignment3 extends Scene {
                 a.play();
             });
             */
-        } else if (intersects_on_z_axis) {
-            console.log(object_pos, ball_pos, intersects_on_x_axis, intersects_on_y_axis, intersects_on_z_axis);
+        } else if (intersects_on_z_axis && (!intersects_on_y_axis || !intersects_on_x_axis)) {
+            // console.log(object_pos, ball_pos, intersects_on_x_axis, intersects_on_y_axis, intersects_on_z_axis);
+            // The player scores if they don't hit the keeper
+            console.log('GOAL!!!!');
+            if (this.mode === 'two_player') {
+                if (this.currently_playing['player1']) {
+                    this.score['player1'] += 1;
+                } else {
+                    this.score['player2'] += 1;
+                }
+
+                this.currently_playing['player1'] = !this.currently_playing['player1'];
+                this.currently_playing['player2'] = !this.currently_playing['player2'];
+            }
         } else if (ball_pos[1] < -1) {
             // less than -1 so then ball will below plane and player won't be able to see the ball move
             // FIXME: the value -1 determines how quickly the new ball_arrow position
@@ -580,25 +606,33 @@ export class Assignment3 extends Scene {
 
         this.move_ball(context, program_state, ball_arrow_transform);
 
+        // FIXME: fix this so obvious to user what mode they are in
+        //        eg two player is differently colored score
+        //        one player practice is target
+        //        single player keeper is just a keeper
+
+
         // Practice mode where you aim for a randomly placed target
-        // TODO: randomly place target somewhere in goal)
         if (this.mode === 'practice') {
-            // this.move_object('target', context, program_state);
             this.randomly_place_target(context, program_state);
             this.ball_object_collision_detection('target',2, 3);
+            this.update_one_player_score(context, program_state);
         }
+        // TODO:
         // Single player where you against a moving AI keeper
         else if (this.mode === 'single_player_keeper') {
             // this.move_object('keeper', context, program_state);
             this.ball_object_collision_detection('keeper',2, 3);
+            this.update_one_player_score(context, program_state);
         }
         // Two player mode where one player is goalie and the other player shoots the ball
         else if (this.mode === 'two_player') {
-            // TODO
             this.player_moved_object('keeper', context, program_state);
+            // note ball_object_x, y distance are ignored by ball_object_collision_detection
+            // since not shooting against a target
+            this.ball_object_collision_detection('keeper',2, 3);
+            this.update_two_player_score(context, program_state);
         }
-
-        this.update_score(context, program_state);
 
         this.determine_if_game_over();
     }
