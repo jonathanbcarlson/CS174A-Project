@@ -517,16 +517,12 @@ export class Assignment3 extends Scene {
         } else if (intersects_on_z_axis && (!intersects_on_y_axis || !intersects_on_x_axis)) {
             // console.log(object_pos, ball_pos, intersects_on_x_axis, intersects_on_y_axis, intersects_on_z_axis);
             // The player scores if they don't hit the keeper
-            console.log('GOAL!!!!');
             if (this.mode === 'two_player') {
                 if (this.currently_playing['player1']) {
                     this.score['player1'] += 1;
                 } else {
                     this.score['player2'] += 1;
                 }
-
-                this.currently_playing['player1'] = !this.currently_playing['player1'];
-                this.currently_playing['player2'] = !this.currently_playing['player2'];
             }
         } else if (ball_pos[1] < -1) {
             // less than -1 so then ball will below plane and player won't be able to see the ball move
@@ -535,6 +531,12 @@ export class Assignment3 extends Scene {
             //       if it's too big say -5 then if the user moves the arrow before the ball gets to -5
             //       then the ball will go in the previously chosen direction
             this.have_determined_ball_v0 = false;
+        }
+
+        // even if the player misses still move to the next player
+        if (this.mode === 'two_player' && intersects_on_z_axis) {
+            this.currently_playing['player1'] = !this.currently_playing['player1'];
+            this.currently_playing['player2'] = !this.currently_playing['player2'];
         }
     }
 
