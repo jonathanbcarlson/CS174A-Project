@@ -303,17 +303,17 @@ export class Assignment3 extends Scene {
             let keeper_transform = Mat4.identity();
             keeper_transform = keeper_transform
                 .times(Mat4.translation(0,3, this.goal_z))
-                .times(Mat4.scale(this.ball_radius, this.keeper_height, this.ball_radius));
-
-            keeper_transform = keeper_transform
+                .times(Mat4.scale(this.ball_radius, this.keeper_height, this.ball_radius))
                 .times(position_translation);
 
             this.shapes.square.draw(context, program_state, keeper_transform, this.materials.keeper);
 
-            let keeper_head_transform = Mat4.identity();
-            keeper_head_transform = keeper_head_transform
-                .times(Mat4.translation(0, this.keeper_height+4, this.goal_z))
-                .times(position_translation);
+            // let keeper_head_transform = Mat4.identity();
+            let keeper_head_transform = keeper_transform
+                .times(Mat4.scale(1, 1/this.keeper_height, 1))
+                .times(Mat4.translation(0, 3, 0));
+                //.times(Mat4.translation(0, this.keeper_height+4, this.goal_z))
+                // .times(Mat4.scale(1.5*this.ball_radius, 1.38*this.ball_radius, this.ball_radius))
 
             // have keeper head color be the keeper's player color
             let keeper_head_color = this.player1_color;
@@ -498,6 +498,7 @@ export class Assignment3 extends Scene {
             // visually the circle intersects ball if it's +/- ball_object_x_distance away
             intersects_on_x_axis = Math.abs(ball_pos_x - object_pos_x) <= ball_object_x_distance;
             // same for y (height)
+            // keeper_height + keeper_head_height = 6 and visually ball should be one above it so 7
             intersects_on_y_axis = Math.floor(ball_pos_y) <= 7;
             // z is -18 since that's where the goal posts are
             intersects_on_z_axis = Math.floor(ball_pos[2]) === -18;
@@ -630,6 +631,7 @@ export class Assignment3 extends Scene {
         }
         // TODO:
         // Single player where you against a moving AI keeper
+        // make robot keeper head magenta
         else if (this.mode === 'single_player_keeper') {
             // this.move_object('keeper', context, program_state);
             this.ball_object_collision_detection('keeper',2, 3);
