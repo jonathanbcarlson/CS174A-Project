@@ -504,7 +504,7 @@ export class Assignment3 extends Scene {
             this.ball_collision_success = intersects_on_x_axis && intersects_on_y_axis && intersects_on_z_axis
         } else {
             // otherwise want ball to (not) hit goalkeeper
-            // visually the circle intersects ball if it's +/- ball_object_x_distance away
+            // visually the keeper intersects the ball if it's +/- ball_object_x_distance away
             intersects_on_x_axis = Math.abs(ball_pos_x - object_pos_x) <= ball_object_x_distance;
             // same for y (height)
             // keeper_height + keeper_head_height = 6 and visually ball should be one above it so 7
@@ -647,7 +647,7 @@ export class Assignment3 extends Scene {
             this.player_moved_object('keeper', context, program_state);
             // note ball_object_x, y distance are ignored by ball_object_collision_detection
             // since not shooting against a target
-            this.ball_object_collision_detection('keeper',2, 3);
+            this.ball_object_collision_detection('keeper',1, 3);
             this.update_two_player_score(context, program_state);
         }
 
