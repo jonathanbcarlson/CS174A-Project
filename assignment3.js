@@ -113,6 +113,11 @@ export class Assignment3 extends Scene {
         this.initial_camera_location = Mat4.look_at(vec3(0, 10, 32), vec3(0, 0, 0), vec3(0, 1, 0));
     }
 
+    reset_player_scores() {
+        this.score['player1'] = 0;
+        this.score['player2'] = 0;
+    }
+
     make_control_panel() {
 
         let remove_buttons = (ids) => {
@@ -149,6 +154,7 @@ export class Assignment3 extends Scene {
                 this.object_type = 'keeper';
                 remove_buttons(move_keeper_buttons);
             }
+            this.reset_player_scores();
         }
 
         this.key_triggered_button("Go to Practice mode", ["p"],
@@ -465,18 +471,17 @@ export class Assignment3 extends Scene {
         // if either score is max_score reset scores
         let reset_scores = false;
         if (this.score['player1'] === this.max_score) {
-            // TODO: say good job player 1
+            // TODO: say good job player 1 via audio in Fast RMX announcer style
             alert('Good job player 1');
             reset_scores = true;
         } else if (this.score['player2'] === this.max_score) {
-            // TODO: say good job player 2
+            // TODO: say good job player 2 via audio
             alert('Good job player 2');
             reset_scores = true;
         }
 
         if (reset_scores) {
-            this.score['player1'] = 0;
-            this.score['player2'] = 0
+            this.reset_player_scores();
         }
     }
 
