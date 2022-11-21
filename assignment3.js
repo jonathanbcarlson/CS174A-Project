@@ -410,20 +410,28 @@ export class Assignment3 extends Scene {
             // smaller ba_y[1] means smaller y
             // larger ba_y[1] means larger y
 
+            let ball_initial_position_x = 0;
+            let ball_initial_position_y = 1;
+            let ball_initial_position_z = 8;
+
             if (!this.have_determined_ball_v0) {
                 this.ball_v0_x = ba_x[1];
                 this.ball_v0_y = ba_y[1];
                 this.ball_v0_z = ba_z[2];
                 this.have_determined_ball_v0 = true;
+
+                this.ball_x_total = ball_initial_position_x;
+                this.ball_z_total = ball_initial_position_z;
             }
 
-            let ball_initial_position_x = 0;
-            let ball_initial_position_y = 1;
-            let ball_initial_position_z = 8;
+            this.ball_x_total = this.ball_x_total + this.ball_v0_x*0.5;
+            this.ball_z_total = this.ball_z_total + this.ball_v0_z*0.5;
 
-            let ball_x = this.ball_v0_x*this.ball_time + ball_initial_position_x;
-
-            let ball_z = this.ball_v0_z*this.ball_time + ball_initial_position_z;
+            let air_friction = 0.004;
+            this.slow_down_ball(air_friction);
+            this.slow_down_ball(air_friction);
+            // this.ball_v0_x = this.ball_v0_x - (this.ball_v0_x * air_friction);
+            // this.ball_v0_z = this.ball_v0_z - (this.ball_v0_z * air_friction);
 
             // y = v0_y * t - 0.5 g t**2 where v0_y is the norm of the second row of ball_arrow_transform
 
@@ -441,9 +449,9 @@ export class Assignment3 extends Scene {
                 .times(Mat4.scale(this.ball_radius, this.ball_radius, this.ball_radius));
 
             ball_transform = ball_transform
-                .times(Mat4.translation(ball_x, ball_y, -ball_z));
+                .times(Mat4.translation(this.ball_x_total, ball_y, -this.ball_z_total));
 
-            this.position['ball'] = vec3(ball_x, ball_y, -ball_z);
+            this.position['ball'] = vec3(this.ball_x_total, ball_y, -this.ball_z_total);
 
             this.shapes.sphere4.draw(context, program_state, ball_transform, this.materials.ball);
             this.ball_time += 0.5;
@@ -593,10 +601,34 @@ export class Assignment3 extends Scene {
         this.shapes.circle.draw(context, program_state, object_transform, this.materials.target);
     }
 
+    slow_down_ball(friction) {
+        // slow down the ball slightly
+        this.ball_v0_x = this.ball_v0_x - (this.ball_v0_x * friction);
+        this.ball_v0_z = this.ball_v0_z - (this.ball_v0_z * friction);
+
+        if(this.ball_v0_z < 0.005) {
+            this.ball_v0_z = 0;
+        }
+
+        if(this.ball_v0_x > 0) {
+            if(this.ball_v0_x < 0.005) {
+                this.ball_v0_x = 0;
+            }
+        }
+
+        if(this.ball_v0_x < 0) {
+            if(-this.ball_v0_x < 0.005) {
+                this.ball_v0_x = 0;
+            }
+        }
+    }
+
     ball_field_collision_detection() {
         let ball_pos = this.position['ball'];
         let ball_pos_y = ball_pos[1];
         let bounce_constant = 0.35;
+        let ground_friction = 0.04;
+
 
 
         // If ball_pos_y <= 1, then the ball must bounce!
@@ -606,6 +638,8 @@ export class Assignment3 extends Scene {
             if(this.ball_v0_y < 0) {
                 this.ball_v0_y = 0;
             }
+
+            this.slow_down_ball(ground_friction);
         }
     }
 
