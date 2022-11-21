@@ -4,6 +4,8 @@ const {
     Vector, Vector3, vec, vec3, vec4, color, hex_color, Shader, Matrix, Mat4, Light, Shape, Material, Scene, Texture
 } = tiny;
 
+import {Text_Line} from "./examples/text-demo.js";
+
 export class Assignment3 extends Scene {
     constructor() {
         // constructor(): Scenes begin by populating initial values like the Shapes and Materials they'll need.
@@ -11,10 +13,9 @@ export class Assignment3 extends Scene {
 
         // At the beginning of our program, load one of each of these shape definitions onto the GPU.
         this.shapes = {
+            text: new Text_Line(35),
             single_arrow: new defs.Single_Arrow(),
             square: new defs.Square(),
-            torus: new defs.Torus(40, 40),
-            torus2: new defs.Torus(3, 15),
             sphere1: new (defs.Subdivision_Sphere.prototype.make_flat_shaded_version())(1),
             sphere2: new (defs.Subdivision_Sphere.prototype.make_flat_shaded_version())(2),
             sphere3: new defs.Subdivision_Sphere(3),
@@ -24,6 +25,7 @@ export class Assignment3 extends Scene {
         };
 
         this.ball_radius = 0.8;
+        this.keeper_height = 2;
         this.ball_time = 0;
         this.ball_time_since_last_bounce = 0;
         this.shoot_ball = false;
@@ -35,18 +37,22 @@ export class Assignment3 extends Scene {
 
         this.thrust = {
             'target': vec3(0, 0, 0),
+            'keeper': vec3(0, 0, 0),
             'ball_arrow': vec4(0, 0, 0),
         }
-        this.thrust_position = {
+        this.position = {
             'target': vec3(0, 0, 0),
+            'keeper': vec3(0, 0, 0),
             'ball_arrow': vec3(0, 0, 0),
             'ball': vec3(0, 0, 0),
         };
         this.next_direction = {
             'target': null,
+            'keeper': null,
             'ball_arrow': null
         };
         this.object_moved = {
+            'keeper': false,
             'target': false,
             'ball_arrow': false
         };
@@ -57,20 +63,36 @@ export class Assignment3 extends Scene {
             'forward_backward': 2,
         }
 
+        this.max_score = 5;
+
+        this.score = {
+            "player1": 0,
+            "player2": 0,
+        }
+
+        // have player 1 start
+        this.currently_playing = {
+            "player1": true,
+            "player2": false
+        }
+
+        this.player1_color = hex_color("#ff0000");
+        this.player2_color = hex_color("#0000ff");
+
+        // TODO: need to implement single_player_keeper
+        this.mode = 'single_player_keeper';
+        // init to be compatible with mode
+        this.button_description = 'Move Keeper';
+
         const bump = new defs.Fake_Bump_Map(1);
         // *** Materials
         this.materials = {
-            test: new Material(new defs.Phong_Shader(),
-                {ambient: .4, diffusivity: .6, color: hex_color("#ffffff")}),
-            test2: new Material(new Gouraud_Shader(),
-                {ambient: .4, diffusivity: .6, color: hex_color("#992828")}),
-            ring: new Material(new Ring_Shader()),
             ball: new Material(new defs.Phong_Shader(),
                 {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#FFFFFF")}),
             target: new Material(new defs.Phong_Shader(),
                 {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#FF0000")}),
             ball_arrow: new Material(new defs.Phong_Shader(),
-                {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#FF00FF")}),
+                {ambient: 1, diffusivity: 1, specularity: 1}),
             field: new Material(new defs.Phong_Shader(),
                 {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#00FF00")}),
             goal_post: new Material(new defs.Phong_Shader(),
@@ -80,12 +102,71 @@ export class Assignment3 extends Scene {
             stadium_right: new Material(bump, {ambient: .5, texture: new Texture("assets/stadium_right.png")}),
             stadium_behind: new Material(bump, {ambient: .5, texture: new Texture("assets/stadium_behind.png")}),
             stadium_left: new Material(bump, {ambient: .5, texture: new Texture("assets/stadium_left.png")}),
+            score: new Material(new defs.Textured_Phong(1), {
+                ambient: 1, diffusivity: 0, specularity: 0,
+                texture: new Texture("assets/text.png")
+            }),
+            keeper: new Material(new defs.Textured_Phong(1), {
+                ambient: 1, diffusivity: 0, specularity: 0, color: hex_color("#ffff00")
+            }),
         }
 
-        this.initial_camera_location = Mat4.look_at(vec3(0, 10, 20), vec3(0, 0, 0), vec3(0, 1, 0));
+        this.initial_camera_location = Mat4.look_at(vec3(0, 10, 32), vec3(0, 0, 0), vec3(0, 1, 0));
+    }
+
+    reset_player_scores() {
+        this.score['player1'] = 0;
+        this.score['player2'] = 0;
     }
 
     make_control_panel() {
+
+        let remove_buttons = (ids) => {
+            for (const id of ids) {
+                let elem = document.getElementById(id);
+                if (elem !== null) {
+                    elem.remove();
+                }
+            }
+        }
+
+        let move_keeper_buttons = ['i', 'j', 'l', 'k'];
+
+        let update_mode = (mode) => {
+            this.mode = mode;
+            if (mode === 'two_player') {
+                this.button_description = 'Move Keeper'
+                this.object_type = 'keeper';
+                // remove previously existing buttons
+                remove_buttons(move_keeper_buttons);
+                this.key_triggered_button(`${this.button_description} Left`, ["j"],
+                    () => button_cb(this.object_type, -1, 'left_right'));
+                this.key_triggered_button(`${this.button_description} Right`, ["l"],
+                    () => button_cb(this.object_type, 1, 'left_right'));
+                // TODO: figure out if keeper should be able to jump
+                this.key_triggered_button(`${this.button_description} Up`, ["i"],
+                    () => button_cb(this.object_type, 1, 'up_down'));
+                this.key_triggered_button(`${this.button_description} Down`, ["k"],
+                    () => button_cb(this.object_type, -1, 'up_down'));
+            } else if (mode === 'practice') {
+                this.object_type = 'target';
+                remove_buttons(move_keeper_buttons);
+            } else if (mode === 'single_player_keeper') {
+                this.object_type = 'keeper';
+                remove_buttons(move_keeper_buttons);
+            }
+            this.reset_player_scores();
+        }
+
+        this.key_triggered_button("Go to Practice mode", ["p"],
+            () => {update_mode('practice')});
+
+        this.key_triggered_button("Go to Single Player mode", ["1"],
+            () => {update_mode('single_player_keeper')});
+
+        this.key_triggered_button("Go to Two Player mode", ["2"],
+            () => {update_mode('two_player')});
+
         // object_type is either ball or target
         // thrust_val is the value for the thrust
         // direction is the axis (0 for left_right, 1 for up_down, 2 for forward_backward)
@@ -97,26 +178,18 @@ export class Assignment3 extends Scene {
 
         // Draw the scene's buttons, setup their actions and keyboard shortcuts, and monitor live measurements.
         // use ArrowUp/Down/Left/Right for arrow keys found from https://stackoverflow.com/a/44213036
-        this.key_triggered_button("Move arrow Up", ["ArrowUp"],
+        this.key_triggered_button("Move arrow Up", ["ArrowDown"],
             () => button_cb('ball_arrow', -1, 'forward_backward'));
-        this.key_triggered_button("Move arrow Down", ["ArrowDown"],
+        this.key_triggered_button("Move arrow Down", ["ArrowUp"],
             () => button_cb('ball_arrow', 1, 'forward_backward'));
         this.key_triggered_button("Move arrow Left", ["ArrowLeft"],
             () => button_cb('ball_arrow', 1, 'left_right'));
         this.key_triggered_button("Move arrow Right", ["ArrowRight"],
             () => button_cb('ball_arrow', -1, 'left_right'));
 
-        this.key_triggered_button("Move target Up", ["i"],
-            () => button_cb('target', 1, 'up_down'));
-        this.key_triggered_button("Move target Down", ["k"],
-            () => button_cb('target', -1, 'up_down'));
-        this.key_triggered_button("Move target Left", ["j"],
-            () => button_cb('target', -1, 'left_right'));
-        this.key_triggered_button("Move target Right", ["l"],
-            () => button_cb('target', 1, 'left_right'));
-
         this.key_triggered_button("Shoot ball", ["Enter"],
-            () => {this.shoot_ball = true; this.ball_time = 0; this.ball_time_since_last_bounce = 0; this.have_determined_ball_v0 = false; this.not_bounced = 1});
+            () => {this.shoot_ball = true; this.ball_time = 0;});
+
     }
 
     make_goal(context, program_state, x) {
@@ -199,26 +272,75 @@ export class Assignment3 extends Scene {
         }
 
         let axis = this.direction_to_axis[next_dir];
-        this.thrust_position[object_type][axis] += this.thrust[object_type][axis];
+        this.position[object_type][axis] += this.thrust[object_type][axis];
 
         this.object_moved[object_type] = false;
     }
 
-    move_target(context, program_state) {
-        if (this.object_moved['target']) {
-            this.updateThrustPosition('target');
+    player_moved_object(object_type, context, program_state) {
+        let lower_boundary = {0: (-this.goal_width / 2) - 1, 1: -2};
+        let upper_boundary = {0: (this.goal_width / 2) + 1, 1: (this.goal_height / 2) + 2};
+
+        if (this.object_moved[object_type]) {
+            // Assumption: next direction for target will never be z-dimension
+            let axis = this.next_direction[object_type] === "left_right" ? 0 : 1;
+            let position = this.position[object_type];
+            let delta = this.thrust[object_type][axis];
+
+            if (object_type === 'target') {
+                if ((lower_boundary[axis] <= position[axis] + delta) && (position[axis] + delta <= upper_boundary[axis])) {
+                    this.updateThrustPosition(object_type);
+                } else {
+                    this.object_moved[object_type] = false;
+                }
+            } else {
+                lower_boundary = {0: (-this.goal_width / 2) - 1, 1: 0};
+                upper_boundary = {0: (this.goal_width / 2) + 1, 1: 2};
+
+                if ((lower_boundary[axis] <= position[axis] + delta) && (position[axis] + delta <= upper_boundary[axis])) {
+                    this.updateThrustPosition(object_type);
+                } else {
+                    this.object_moved[object_type] = false;
+                }
+            }
         }
 
-        let target_transform = Mat4.identity();
-        target_transform = target_transform
-            .times(Mat4.translation(0,3, this.goal_z))
-            .times(Mat4.scale(this.ball_radius, this.ball_radius, this.ball_radius));
+        let position_translation = Mat4.translation(this.position[object_type][0],
+            this.position[object_type][1], this.position[object_type][2]);
 
-        target_transform = target_transform
-            .times(Mat4.translation(this.thrust_position['target'][0],
-                this.thrust_position['target'][1], this.thrust_position['target'][2]));
+        if (object_type === 'target') {
+            let object_transform = Mat4.identity();
+            object_transform = object_transform
+                .times(Mat4.translation(0,3, this.goal_z))
+                .times(Mat4.scale(this.ball_radius, this.ball_radius, this.ball_radius));
 
-        this.shapes.circle.draw(context, program_state, target_transform, this.materials.target);
+            object_transform = object_transform.times(position_translation);
+            this.shapes.circle.draw(context, program_state, object_transform, this.materials[object_type]);
+        } else if (object_type === 'keeper') {
+            let keeper_transform = Mat4.identity();
+            keeper_transform = keeper_transform
+                .times(Mat4.translation(0,2, this.goal_z))
+                .times(Mat4.scale(this.ball_radius, this.keeper_height, this.ball_radius))
+                .times(position_translation);
+
+            this.shapes.square.draw(context, program_state, keeper_transform, this.materials.keeper);
+
+            // let keeper_head_transform = Mat4.identity();
+            let keeper_head_transform = keeper_transform
+                .times(Mat4.scale(1, 1/this.keeper_height, 1))
+                .times(Mat4.translation(0, 3, 0));
+                //.times(Mat4.translation(0, this.keeper_height+4, this.goal_z))
+                // .times(Mat4.scale(1.5*this.ball_radius, 1.38*this.ball_radius, this.ball_radius))
+
+            // have keeper head color be the keeper's player color
+            let keeper_head_color = this.player1_color;
+            if (this.currently_playing['player1']) {
+                keeper_head_color = this.player2_color;
+            }
+
+            this.shapes.circle.draw(context, program_state, keeper_head_transform,
+                this.materials.target.override({color: keeper_head_color}));
+        }
     }
 
     draw_ball_arrow (context, program_state) {
@@ -228,15 +350,46 @@ export class Assignment3 extends Scene {
         ball_arrow_transform = ball_arrow_transform
             .times(Mat4.translation(0, 0, 8))
             .times(Mat4.scale(ball_arrow_scale, ball_arrow_scale, ball_arrow_scale));
-        // FIXME: if user holds down in a direction for too long then because we're passing this to sin
-        //        then the arrow starts oscillating back and forth.
-        //        This could be cool to randomize the arrow location or have the user press SPACE to stop
-        //        the arrow at a random location.
-        ball_arrow_transform = ball_arrow_transform
-            .times(Mat4.rotation(Math.sin(this.thrust_position['ball_arrow'][2] * Math.PI / 20), 1, 0, 0))
-            .times(Mat4.rotation(Math.sin(this.thrust_position['ball_arrow'][0] * Math.PI / 20), 0, 0, 1));
 
-        this.shapes.single_arrow.draw(context, program_state, ball_arrow_transform, this.materials.ball_arrow);
+        // TODO: take into account the angle between the arrow vector and the field plane
+        // if the angle is 0 then just have it go straight (roll on field)
+        // otherwise do parabolic with the initial y-thrust/ball_y_scale a function of the angle??
+        let x_rotation_angle = this.position['ball_arrow'][2]/10;
+        let z_rotation_angle = this.position['ball_arrow'][0]/10;
+
+        let determine_rotation_angle_and_update_position = (input_angle, angle_max, angle_min, axis) => {
+            let angle = input_angle;
+            if (angle >= angle_max) {
+                angle = angle_max;
+            } else if (angle <= angle_min) {
+                angle = angle_min;
+            }
+            this.position['ball_arrow'][axis] = angle*10;
+            return angle;
+        }
+
+        // FIXME: make z_rotation_angle a function of goal width
+        z_rotation_angle = determine_rotation_angle_and_update_position(
+            z_rotation_angle, 1, -1, 0);
+
+        let x_rotation_angle_min = -0.7;
+        if (z_rotation_angle <= -0.7 || z_rotation_angle >= 0.6) {
+            x_rotation_angle_min = -0.5;
+        }
+        x_rotation_angle = determine_rotation_angle_and_update_position(
+            x_rotation_angle, 0.3, x_rotation_angle_min, 2);
+
+        ball_arrow_transform = ball_arrow_transform
+            .times(Mat4.rotation(x_rotation_angle, 1, 0, 0))
+            .times(Mat4.rotation(z_rotation_angle, 0, 0, 1));
+
+        let p1_mat = this.materials.ball_arrow.override({color: this.player1_color});
+        let p2_mat = this.materials.ball_arrow.override({color: this.player2_color});
+        if (this.currently_playing['player1']) {
+            this.shapes.single_arrow.draw(context, program_state, ball_arrow_transform, p1_mat);
+        } else {
+            this.shapes.single_arrow.draw(context, program_state, ball_arrow_transform, p2_mat);
+        }
         return ball_arrow_transform;
     }
 
@@ -291,7 +444,7 @@ export class Assignment3 extends Scene {
             ball_transform = ball_transform
                 .times(Mat4.translation(ball_x, ball_y, -ball_z));
 
-            this.thrust_position['ball'] = vec3(ball_x, ball_y, -ball_z);
+            this.position['ball'] = vec3(ball_x, ball_y, -ball_z);
 
             this.shapes.sphere4.draw(context, program_state, ball_transform, this.materials.ball);
             this.ball_time += 0.5;
@@ -299,20 +452,86 @@ export class Assignment3 extends Scene {
         }
     }
 
-    ball_target_collision_detection(ball_target_x_distance, ball_target_y_distance) {
-        let target_pos = this.thrust_position['target'];
-        let ball_pos = this.thrust_position['ball'];
+    update_one_player_score(context, program_state) {
+        let player1_score_transform = Mat4.identity().times(Mat4.translation(-5, 12, -8));
+        this.shapes.text.set_string(`Score: ${this.score['player1']}`, context.context);
+        this.shapes.text.draw(context, program_state, player1_score_transform,
+            this.materials.score.override({color: this.player1_color}));
+    }
+
+    update_two_player_score(context, program_state) {
+        let player1_score_transform = Mat4.identity().times(Mat4.translation(-3, 12, -8));
+        this.shapes.text.set_string(`${this.score['player1']}`, context.context);
+        this.shapes.text.draw(context, program_state, player1_score_transform,
+            this.materials.score.override({color: this.player1_color}));
+        let colon_transform = player1_score_transform.times(Mat4.translation(3, 0, 0));
+        this.shapes.text.set_string(':', context.context);
+        this.shapes.text.draw(context, program_state, colon_transform, this.materials.score);
+        let player2_score_transform = colon_transform.times(Mat4.translation(3, 0, 0));
+        this.shapes.text.set_string(`${this.score['player2']}`, context.context);
+        this.shapes.text.draw(context, program_state, player2_score_transform,
+            this.materials.score.override({color: this.player2_color}));
+    }
+
+    determine_if_game_over() {
+        // if either score is max_score reset scores
+        let reset_scores = false;
+        if (this.score['player1'] === this.max_score) {
+            // TODO: say good job player 1 via audio in Fast RMX announcer style
+            alert('Good job player 1');
+            reset_scores = true;
+        } else if (this.score['player2'] === this.max_score) {
+            // TODO: say good job player 2 via audio
+            alert('Good job player 2');
+            reset_scores = true;
+        }
+
+        if (reset_scores) {
+            this.reset_player_scores();
+        }
+    }
+
+    ball_object_collision_detection (object, ball_object_x_distance, ball_object_y_distance) {
+        let object_pos = this.position[object];
+        let ball_pos = this.position['ball'];
         let ball_pos_x = ball_pos[0], ball_pos_y = ball_pos[1];
-        let target_pos_x = target_pos[0], target_pos_y = target_pos[1];
-        // visually the circle intersects ball if it's +/- ball_target_x_distance away
-        let intersects_on_x_axis = Math.abs(ball_pos_x - target_pos_x) <= ball_target_x_distance;
-        // same for y (height)
-        let intersects_on_y_axis = Math.abs(Math.floor(ball_pos_y) - target_pos_y) <= ball_target_y_distance;
-        // z is -18 since that's where the goal posts are
-        let intersects_on_z_axis = Math.floor(ball_pos[2]) === -18;
-        if (intersects_on_x_axis && intersects_on_y_axis && intersects_on_z_axis) {
-            // TODO: increment a score or something
-            console.log('COLLISION', target_pos, ball_pos);
+        let object_pos_x = object_pos[0], object_pos_y = object_pos[1];
+
+        let intersects_on_x_axis = false;
+        let intersects_on_y_axis = false;
+        let intersects_on_z_axis = false;
+
+        // want ball to hit target in practice mode
+        if (this.mode === 'practice') {
+            // visually the circle intersects ball if it's +/- ball_object_x_distance away
+            intersects_on_x_axis = Math.abs(ball_pos_x - object_pos_x) <= ball_object_x_distance;
+            // same for y (height)
+            intersects_on_y_axis = Math.abs(Math.floor(ball_pos_y) - object_pos_y) <= ball_object_y_distance;
+            // z is -18 since that's where the goal posts are
+            intersects_on_z_axis = Math.floor(ball_pos[2]) === -18;
+            this.ball_intersects_goal_on_z_axis = intersects_on_z_axis;
+            this.ball_collision_success = intersects_on_x_axis && intersects_on_y_axis && intersects_on_z_axis
+        } else {
+            // otherwise want ball to (not) hit goalkeeper
+            // visually the keeper intersects the ball if it's +/- ball_object_x_distance away
+            intersects_on_x_axis = Math.abs(ball_pos_x - object_pos_x) <= ball_object_x_distance;
+            // same for y (height)
+            // keeper_height + keeper_head_height = 6 and visually ball should be one above it so 7
+            // also need to account for if keeper is in the airq
+            intersects_on_y_axis = Math.ceil(ball_pos_y) <= 7
+                || (Math.ceil(ball_pos_y) >= 9 && object_pos_y === 2)
+                || (Math.ceil(ball_pos_y) >= 8 && object_pos_y === 1);
+            // z is -18 since that's where the goal posts are
+            intersects_on_z_axis = Math.floor(ball_pos[2]) === -18;
+            this.ball_intersects_goal_on_z_axis = intersects_on_z_axis;
+            this.ball_collision_success = intersects_on_x_axis && intersects_on_y_axis && intersects_on_z_axis
+        }
+
+        if (this.ball_collision_success) {
+            if (this.mode !== 'two_player') {
+                this.score['player1'] += 1;
+            }
+            // TODO: add audio when player scores
             /*
             let a = new Audio('assets/audio/goal.m4a');
             // https://developer.mozilla.org/en-US/docs/Web/API/HTMLAudioElement/Audio
@@ -321,10 +540,65 @@ export class Assignment3 extends Scene {
                 a.play();
             });
             */
-        } else if (intersects_on_z_axis) {
-            console.log(target_pos, ball_pos, intersects_on_x_axis, intersects_on_y_axis, intersects_on_z_axis);
+        } else if (intersects_on_z_axis && (!intersects_on_y_axis || !intersects_on_x_axis)) {
+            // console.log(object_pos, ball_pos, intersects_on_x_axis, intersects_on_y_axis, intersects_on_z_axis);
+            // The player scores if they don't hit the keeper
+            if (this.mode === 'two_player') {
+                if (this.currently_playing['player1']) {
+                    this.score['player1'] += 1;
+                } else {
+                    this.score['player2'] += 1;
+                }
+            }
+        } else if (ball_pos[1] < -1) {
+            // less than -1 so then ball will below plane and player won't be able to see the ball move
+            // FIXME: the value -1 determines how quickly the new ball_arrow position
+            //       will be taken into account when the user presses Enter again
+            //       if it's too big say -5 then if the user moves the arrow before the ball gets to -5
+            //       then the ball will go in the previously chosen direction
+            this.have_determined_ball_v0 = false;
         }
 
+        // even if the player misses still move to the next player
+        if (this.mode === 'two_player' && intersects_on_z_axis) {
+            this.currently_playing['player1'] = !this.currently_playing['player1'];
+            this.currently_playing['player2'] = !this.currently_playing['player2'];
+        }
+    }
+
+    randomly_place_target(context, program_state) {
+
+        let object_type = 'target';
+
+        // TODO: determine if we should move target randomly every time
+        //       even if they miss (this.ball_intersects_goal_on_z_axis)
+        //       OR just move target if they get a collision (this.ball_collision_success)
+        if (this.ball_intersects_goal_on_z_axis) {
+            let lower_boundary = {0: (-this.goal_width / 2) - 1, 1: -2};
+            let upper_boundary = {0: (this.goal_width / 2) + 1, 1: (this.goal_height / 2) + 2};
+
+            // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/random#getting_a_random_integer_between_two_values_inclusive
+            let getRandomIntInclusive = (min, max) => {
+                min = Math.ceil(min);
+                max = Math.floor(max);
+                return Math.floor(Math.random() * (max - min + 1) + min);
+            }
+
+            let pos_x = getRandomIntInclusive(lower_boundary[0], upper_boundary[0])
+            let pos_y = getRandomIntInclusive(lower_boundary[1], upper_boundary[1])
+            this.position[object_type] = vec3(pos_x, pos_y, 0);
+        }
+
+        let position_translation = Mat4.translation(this.position[object_type][0],
+            this.position[object_type][1], this.position[object_type][2]);
+
+        let object_transform = Mat4.identity();
+        object_transform = object_transform
+            .times(Mat4.translation(0, 3, this.goal_z))
+            .times(Mat4.scale(this.ball_radius, this.ball_radius, this.ball_radius));
+
+        object_transform = object_transform.times(position_translation);
+        this.shapes.circle.draw(context, program_state, object_transform, this.materials.target);
     }
 
     ball_field_collision_detection() {
@@ -370,17 +644,42 @@ export class Assignment3 extends Scene {
 
         this.make_goal(context, program_state, 0);
 
-        this.move_target(context, program_state);
-
         let ball_arrow_transform = this.draw_ball_arrow(context, program_state);
 
         this.ball_field_collision_detection();
 
         this.move_ball(context, program_state, ball_arrow_transform);
 
-        this.ball_target_collision_detection(2, 3);
+        // FIXME: fix this so obvious to user what mode they are in
+        //        eg two player is differently colored score
+        //        one player practice is target
+        //        single player keeper is just a keeper
 
 
+        // Practice mode where you aim for a randomly placed target
+        if (this.mode === 'practice') {
+            this.randomly_place_target(context, program_state);
+            this.ball_object_collision_detection('target',2, 3);
+            this.update_one_player_score(context, program_state);
+        }
+        // TODO:
+        // Single player where you against a moving AI keeper
+        // make robot keeper head magenta
+        else if (this.mode === 'single_player_keeper') {
+            // this.move_object('keeper', context, program_state);
+            this.ball_object_collision_detection('keeper',2, 3);
+            this.update_one_player_score(context, program_state);
+        }
+        // Two player mode where one player is goalie and the other player shoots the ball
+        else if (this.mode === 'two_player') {
+            this.player_moved_object('keeper', context, program_state);
+            // note ball_object_x, y distance are ignored by ball_object_collision_detection
+            // since not shooting against a target
+            this.ball_object_collision_detection('keeper',1, 3);
+            this.update_two_player_score(context, program_state);
+        }
+
+        this.determine_if_game_over();
     }
 }
 
@@ -402,7 +701,7 @@ class Gouraud_Shader extends Shader {
         uniform float light_attenuation_factors[N_LIGHTS];
         uniform vec4 shape_color;
         uniform vec3 squared_scale, camera_center;
-        varying vec4 vertex_color;
+        varying vec4 vertex_color;J
 
         // Specifier "varying" means a variable's final value will be passed from the vertex shader
         // on to the next phase (fragment shader), then interpolated per-fragment, weighted by the

@@ -2,15 +2,16 @@ import {defs, tiny} from './common.js';
 // Pull these names into this module's scope for convenience:
 const {Vector, vec3, vec4, color, Mat4, Light, Shape, Material, Shader, Texture, Scene} = tiny;
 
-export class Text_Line extends Shape {                           // **Text_Line** embeds text in the 3D world, using a crude texture
-                                                                 // method.  This Shape is made of a horizontal arrangement of quads.
-                                                                 // Each is textured over with images of ASCII characters, spelling
-                                                                 // out a string.  Usage:  Instantiate the Shape with the desired
-                                                                 // character line width.  Then assign it a single-line string by calling
-                                                                 // set_string("your string") on it. Draw the shape on a material
-                                                                 // with full ambient weight, and text.png assigned as its texture
-                                                                 // file.  For multi-line strings, repeat this process and draw with
-                                                                 // a different matrix.
+export class Text_Line extends Shape {
+    // **Text_Line** embeds text in the 3D world, using a crude texture
+    // method.  This Shape is made of a horizontal arrangement of quads.
+    // Each is textured over with images of ASCII characters, spelling
+    // out a string.  Usage:  Instantiate the Shape with the desired
+    // character line width.  Then assign it a single-line string by calling
+    // set_string("your string") on it. Draw the shape on a material
+    // with full ambient weight, and text.png assigned as its texture
+    // file.  For multi-line strings, repeat this process and draw with
+    // a different matrix.
     constructor(max_size) {
         super("position", "normal", "texture_coord");
         this.max_size = max_size;
@@ -21,7 +22,8 @@ export class Text_Line extends Shape {                           // **Text_Line*
         }
     }
 
-    set_string(line, context) {           // set_string():  Call this to overwrite the texture coordinates buffer with new
+    set_string(line, context) {
+        // set_string():  Call this to overwrite the texture coordinates buffer with new
         // values per quad, which enclose each of the string's characters.
         this.arrays.texture_coord = [];
         for (var i = 0; i < this.max_size; i++) {
@@ -45,7 +47,8 @@ export class Text_Line extends Shape {                           // **Text_Line*
 }
 
 
-export class Text_Demo extends Scene {             // **Text_Demo** is a scene with a cube, for demonstrating the Text_Line utility Shape.
+export class Text_Demo extends Scene {
+    // **Text_Demo** is a scene with a cube, for demonstrating the Text_Line utility Shape.
     constructor() {
         super()
         this.shapes = {cube: new defs.Cube(), text: new Text_Line(35)};
