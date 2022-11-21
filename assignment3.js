@@ -435,7 +435,6 @@ export class Assignment3 extends Scene {
 
             let ball_y = this.ball_v0_y * this.ball_time_since_last_bounce - this.ball_y_scale * this.ball_time_since_last_bounce**2 + (ball_initial_position_y);
 
-            console.log("ball_y: " + ball_y);
 
             ball_transform = ball_transform
                 .times(Mat4.translation(ball_initial_position_x, ball_initial_position_y,ball_initial_position_z))
