@@ -269,13 +269,10 @@ export class Assignment3 extends Scene {
             let ball_initial_position_y = 1;
             let ball_initial_position_z = 8;
 
-            let v0_x = this.ball_v0_x;
-            let ball_x = v0_x*this.ball_time + ball_initial_position_x;
+            let ball_x = this.ball_v0_x*this.ball_time + ball_initial_position_x;
 
-            let v0_z = this.ball_v0_z;
-            let ball_z = v0_z*this.ball_time + ball_initial_position_z;
+            let ball_z = this.ball_v0_z*this.ball_time + ball_initial_position_z;
             // y = v0_y * t - 0.5 g t**2 where v0_y is the norm of the second row of ball_arrow_transform
-            let v0_y = this.ball_v0_y;
 
 
 
@@ -284,7 +281,8 @@ export class Assignment3 extends Scene {
             // 0.05 is a good value for a goal_height of 20
             // note that this doesn't allow the ball to hit the top corners but that's a rare case
             this.ball_y_scale = 0.1*(10/this.goal_height);
-            let ball_y = v0_y * this.ball_time_since_last_bounce - this.ball_y_scale * this.ball_time_since_last_bounce**2 + (this.not_bounced * ball_initial_position_y);
+            let ball_y = this.ball_v0_y * this.ball_time_since_last_bounce - this.ball_y_scale * this.ball_time_since_last_bounce**2 + (this.not_bounced * ball_initial_position_y);
+            console.log(ball_y);
 
             ball_transform = ball_transform
                 .times(Mat4.translation(ball_initial_position_x, ball_initial_position_y,ball_initial_position_z))
@@ -336,8 +334,9 @@ export class Assignment3 extends Scene {
         // If ball_pos_y <= 1, then the ball must bounce!
         if(ball_pos_y < 1) {
             let new_ball_velocity_y = -1 * (this.ball_y_scale * this.ball_time + this.ball_v0_y);
-            this.ball_time_since_last_bounce = 0;
-            this.not_bounced = 1;
+            this.ball_time_since_last_bounce = 0.5;
+            this.not_bounced = 0;
+            this.ball_v0_y = new_ball_velocity_y;
 
         }
     }
