@@ -27,9 +27,8 @@ export class Assignment3 extends Scene {
         this.ball_radius = 0.8;
         this.keeper_height = 2;
         this.ball_time = 0;
-        this.ball_time_since_last_bounce = 0;
         this.shoot_ball = false;
-        this.have_determined_ball_v0 = false;
+
 
         this.goal_height = 10;
         this.goal_width = 20;
@@ -188,7 +187,7 @@ export class Assignment3 extends Scene {
             () => button_cb('ball_arrow', -1, 'left_right'));
 
         this.key_triggered_button("Shoot ball", ["Enter"],
-            () => {this.shoot_ball = true; this.ball_time = 0;});
+            () => {this.shoot_ball = true; this.ball_time = 0; this.ball_time_since_last_bounce = 0; this.have_determined_ball_v0 = false;});
 
     }
 
@@ -425,17 +424,18 @@ export class Assignment3 extends Scene {
             let ball_x = this.ball_v0_x*this.ball_time + ball_initial_position_x;
 
             let ball_z = this.ball_v0_z*this.ball_time + ball_initial_position_z;
+
             // y = v0_y * t - 0.5 g t**2 where v0_y is the norm of the second row of ball_arrow_transform
-
-
 
             // as goal_height increases ball_y_scale should decrease
             // 0.1 is a good value for a goal_height of 10
             // 0.05 is a good value for a goal_height of 20
             // note that this doesn't allow the ball to hit the top corners but that's a rare case
             this.ball_y_scale = 0.1*(10/this.goal_height);
-            let ball_y = this.ball_v0_y * this.ball_time_since_last_bounce - this.ball_y_scale * this.ball_time_since_last_bounce**2 + (this.not_bounced * ball_initial_position_y);
-            console.log(ball_y);
+
+            let ball_y = this.ball_v0_y * this.ball_time_since_last_bounce - this.ball_y_scale * this.ball_time_since_last_bounce**2 + (ball_initial_position_y);
+
+            console.log("ball_y: " + ball_y);
 
             ball_transform = ball_transform
                 .times(Mat4.translation(ball_initial_position_x, ball_initial_position_y,ball_initial_position_z))
@@ -550,13 +550,6 @@ export class Assignment3 extends Scene {
                     this.score['player2'] += 1;
                 }
             }
-        } else if (ball_pos[1] < -1) {
-            // less than -1 so then ball will below plane and player won't be able to see the ball move
-            // FIXME: the value -1 determines how quickly the new ball_arrow position
-            //       will be taken into account when the user presses Enter again
-            //       if it's too big say -5 then if the user moves the arrow before the ball gets to -5
-            //       then the ball will go in the previously chosen direction
-            this.have_determined_ball_v0 = false;
         }
 
         // even if the player misses still move to the next player
@@ -602,16 +595,18 @@ export class Assignment3 extends Scene {
     }
 
     ball_field_collision_detection() {
-        let ball_pos = this.thrust_position['ball'];
-        let ball_pos_x = ball_pos[0], ball_pos_y = ball_pos[1], ball_pos_z = ball_pos[2];
+        let ball_pos = this.position['ball'];
+        let ball_pos_y = ball_pos[1];
+        let bounce_constant = 0.35;
+
 
         // If ball_pos_y <= 1, then the ball must bounce!
         if(ball_pos_y < 1) {
-            let new_ball_velocity_y = -1 * (this.ball_y_scale * this.ball_time + this.ball_v0_y);
             this.ball_time_since_last_bounce = 0.5;
-            this.not_bounced = 0;
-            this.ball_v0_y = new_ball_velocity_y;
-
+            this.ball_v0_y = (this.ball_v0_y - bounce_constant);
+            if(this.ball_v0_y < 0) {
+                this.ball_v0_y = 0;
+            }
         }
     }
 
@@ -646,9 +641,9 @@ export class Assignment3 extends Scene {
 
         let ball_arrow_transform = this.draw_ball_arrow(context, program_state);
 
-        this.ball_field_collision_detection();
-
         this.move_ball(context, program_state, ball_arrow_transform);
+
+        this.ball_field_collision_detection();
 
         // FIXME: fix this so obvious to user what mode they are in
         //        eg two player is differently colored score
@@ -701,7 +696,7 @@ class Gouraud_Shader extends Shader {
         uniform float light_attenuation_factors[N_LIGHTS];
         uniform vec4 shape_color;
         uniform vec3 squared_scale, camera_center;
-        varying vec4 vertex_color;J
+        varying vec4 vertex_color;
 
         // Specifier "varying" means a variable's final value will be passed from the vertex shader
         // on to the next phase (fragment shader), then interpolated per-fragment, weighted by the
