@@ -4,6 +4,8 @@ const {
     Vector, Vector3, vec, vec3, vec4, color, hex_color, Shader, Matrix, Mat4, Light, Shape, Material, Scene, Texture
 } = tiny;
 
+const {Textured_Phong} = defs
+
 import {Text_Line} from "./examples/text-demo.js";
 
 export class Assignment3 extends Scene {
@@ -88,6 +90,11 @@ export class Assignment3 extends Scene {
         this.materials = {
             ball: new Material(new defs.Phong_Shader(),
                 {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#FFFFFF")}),
+            textured_ball: new Material(new Texture_Scroll_X(), {
+                color: hex_color("#000000"),
+                ambient: 1, diffusivity: 0.1, specularity: 0.1,
+                texture: new Texture("assets/soccer_ball.png", "LINEAR_MIPMAP_LINEAR")
+            }),
             target: new Material(new defs.Phong_Shader(),
                 {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#FF0000")}),
             ball_arrow: new Material(new defs.Phong_Shader(),
@@ -328,8 +335,8 @@ export class Assignment3 extends Scene {
             let keeper_head_transform = keeper_transform
                 .times(Mat4.scale(1, 1/this.keeper_height, 1))
                 .times(Mat4.translation(0, 3, 0));
-                //.times(Mat4.translation(0, this.keeper_height+4, this.goal_z))
-                // .times(Mat4.scale(1.5*this.ball_radius, 1.38*this.ball_radius, this.ball_radius))
+            //.times(Mat4.translation(0, this.keeper_height+4, this.goal_z))
+            // .times(Mat4.scale(1.5*this.ball_radius, 1.38*this.ball_radius, this.ball_radius))
 
             // have keeper head color be the keeper's player color
             let keeper_head_color = this.player1_color;
@@ -396,7 +403,6 @@ export class Assignment3 extends Scene {
         if (this.object_moved['ball_arrow']) {
             this.updateThrustPosition('ball_arrow');
         }
-
         let ball_transform = Mat4.identity();
         if (this.shoot_ball) {
             // z = v0_z * t where v0_z is the norm of the third row of ball_arrow_transform
@@ -440,9 +446,7 @@ export class Assignment3 extends Scene {
             // 0.05 is a good value for a goal_height of 20
             // note that this doesn't allow the ball to hit the top corners but that's a rare case
             this.ball_y_scale = 0.1*(10/this.goal_height);
-
             let ball_y = this.ball_v0_y * this.ball_time_since_last_bounce - this.ball_y_scale * this.ball_time_since_last_bounce**2 + (ball_initial_position_y);
-
 
             ball_transform = ball_transform
                 .times(Mat4.translation(ball_initial_position_x, ball_initial_position_y,ball_initial_position_z))
@@ -453,7 +457,7 @@ export class Assignment3 extends Scene {
 
             this.position['ball'] = vec3(this.ball_x_total, ball_y, -this.ball_z_total);
 
-            this.shapes.sphere4.draw(context, program_state, ball_transform, this.materials.ball);
+            this.shapes.sphere4.draw(context, program_state, ball_transform, this.materials.textured_ball);
             this.ball_time += 0.5;
             this.ball_time_since_last_bounce += 0.5;
         }
@@ -632,11 +636,12 @@ export class Assignment3 extends Scene {
 
 
         // If ball_pos_y <= 1, then the ball must bounce!
-        if(ball_pos_y < 1) {
+        if(ball_pos_y <= 1) {
             this.ball_time_since_last_bounce = 0.5;
             this.ball_v0_y = (this.ball_v0_y - bounce_constant);
             if(this.ball_v0_y < 0) {
                 this.ball_v0_y = 0;
+                this.position['ball'][1] = 0;
             }
 
             this.slow_down_ball(ground_friction);
@@ -678,6 +683,7 @@ export class Assignment3 extends Scene {
 
         this.ball_field_collision_detection();
 
+
         // FIXME: fix this so obvious to user what mode they are in
         //        eg two player is differently colored score
         //        one player practice is target
@@ -690,8 +696,8 @@ export class Assignment3 extends Scene {
             this.ball_object_collision_detection('target',2, 3);
             this.update_one_player_score(context, program_state);
         }
-        // TODO:
-        // Single player where you against a moving AI keeper
+            // TODO:
+            // Single player where you against a moving AI keeper
         // make robot keeper head magenta
         else if (this.mode === 'single_player_keeper') {
             // this.move_object('keeper', context, program_state);
@@ -899,6 +905,31 @@ class Ring_Shader extends Shader {
             vec4 mixed_color = vec4(shape_color.xyz, factor);
             gl_FragColor = mixed_color + vec4(0.7, 0.5, 0, 0);
         }`;
+    }
+}
+
+
+
+class Texture_Scroll_X extends Textured_Phong {
+    fragment_glsl_code() {
+        return this.shared_glsl_code() + `
+            varying vec2 f_tex_coord;
+            uniform sampler2D texture;
+            uniform float animation_time;
+            
+
+            void main(){
+                // Sample the texture image in the correct place:
+                vec4 tex_color = texture2D( texture, vec2(f_tex_coord.x+(mod(animation_time, 4.0)*-2.0), f_tex_coord.y));
+             
+                if( tex_color.w < .01 ) discard;
+                                                                         // Compute an initial (ambient) color:
+                gl_FragColor = vec4( ( tex_color.xyz + shape_color.xyz ) * ambient, shape_color.w * tex_color.w ); 
+                                                                         // Compute the final color with contributions from lights:
+                gl_FragColor.xyz += phong_model_lights( normalize( N ), vertex_worldspace );
+                
+                
+        } `;
     }
 }
 
