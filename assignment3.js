@@ -487,14 +487,16 @@ export class Assignment3 extends Scene {
     determine_if_game_over() {
         // if either score is max_score reset scores
         let reset_scores = false;
-        if (this.score['player1'] === this.max_score) {
-            // TODO: say good job player 1 via audio in Fast RMX announcer style
-            alert('Good job player 1');
-            reset_scores = true;
-        } else if (this.score['player2'] === this.max_score) {
-            // TODO: say good job player 2 via audio
-            alert('Good job player 2');
-            reset_scores = true;
+        if (this.mode === 'two_player') {
+            if (this.score['player1'] === this.max_score) {
+                // TODO: say good job player 1 via audio in Fast RMX announcer style
+                alert('Good job player 1');
+                reset_scores = true;
+            } else if (this.score['player2'] === this.max_score) {
+                // TODO: say good job player 2 via audio
+                alert('Good job player 2');
+                reset_scores = true;
+            }
         }
 
         if (reset_scores) {
