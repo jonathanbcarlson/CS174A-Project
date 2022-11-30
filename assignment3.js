@@ -535,11 +535,17 @@ export class Assignment3 extends Scene {
             // z is -18 since that's where the goal posts are
             intersects_on_z_axis = Math.floor(ball_pos[2]) === -18;
             this.ball_intersects_goal_on_z_axis = intersects_on_z_axis;
-            this.ball_collision_success = intersects_on_x_axis && intersects_on_y_axis && intersects_on_z_axis
+            this.ball_collision_success = (!intersects_on_x_axis || !intersects_on_y_axis) && intersects_on_z_axis;
         }
 
         if (this.ball_collision_success) {
-            if (this.mode !== 'two_player') {
+            if (this.mode === 'two_player') {
+                if (this.currently_playing['player1']) {
+                    this.score['player1'] += 1;
+                } else {
+                    this.score['player2'] += 1;
+                }
+            } else {
                 this.score['player1'] += 1;
             }
             // TODO: add audio when player scores
@@ -551,16 +557,6 @@ export class Assignment3 extends Scene {
                 a.play();
             });
             */
-        } else if (intersects_on_z_axis && (!intersects_on_y_axis || !intersects_on_x_axis)) {
-            // console.log(object_pos, ball_pos, intersects_on_x_axis, intersects_on_y_axis, intersects_on_z_axis);
-            // The player scores if they don't hit the keeper
-            if (this.mode === 'two_player') {
-                if (this.currently_playing['player1']) {
-                    this.score['player1'] += 1;
-                } else {
-                    this.score['player2'] += 1;
-                }
-            }
         }
 
         // even if the player misses still move to the next player
@@ -683,22 +679,14 @@ export class Assignment3 extends Scene {
 
         this.ball_field_collision_detection();
 
-
-        // FIXME: fix this so obvious to user what mode they are in
-        //        eg two player is differently colored score
-        //        one player practice is target
-        //        single player keeper is just a keeper
-
-
         // Practice mode where you aim for a randomly placed target
         if (this.mode === 'practice') {
             this.randomly_place_target(context, program_state);
             this.ball_object_collision_detection('target',2, 3);
             this.update_one_player_score(context, program_state);
         }
-            // TODO:
-            // Single player where you against a moving AI keeper
-        // make robot keeper head magenta
+            // TODO: Single player where you against a moving AI keeper
+            //       make robot keeper head magenta
         else if (this.mode === 'single_player_keeper') {
             // this.move_object('keeper', context, program_state);
             this.ball_object_collision_detection('keeper',2, 3);
