@@ -428,6 +428,12 @@ export class Assignment3 extends Scene {
 
                 this.ball_x_total = ball_initial_position_x;
                 this.ball_z_total = ball_initial_position_z;
+
+                let goal_ball_dist = this.goal_z - ball_initial_position_z;
+
+                this.ball_travel_time = -goal_ball_dist / this.ball_v0_z;
+                this.shot_x = ball_initial_position_x + this.ball_v0_x * this.ball_travel_time;
+                this.shot_y = ball_initial_position_y + this.ball_v0_y * this.ball_travel_time;
             }
 
             this.ball_x_total = this.ball_x_total + this.ball_v0_x*0.5;
@@ -568,6 +574,44 @@ export class Assignment3 extends Scene {
         }
     }
 
+    keeper_ai(context, program_state) {
+        let pos_x = this.position['keeper'][0];
+        let pos_y = this.position['keeper'][1];
+
+        if (this.shoot_ball) {
+            let dist_x = this.shot_x - pos_x;
+            let dist_y = this.shot_y - pos_y;
+
+            // Assumption: constant z velocity
+            // Always gets to ball at the same time that ball intersects goal
+            // TODO: Change keeper movement to a fixed speed so player can score
+            if (this.ball_time <= this.ball_travel_time) {
+                let t = this.ball_time / this.ball_travel_time;
+                pos_x += dist_x * t;
+                pos_y += dist_y * t;
+            }
+        }
+
+        let position_translation = Mat4.translation(pos_x, pos_y, this.goal_z);
+
+        let keeper_transform = Mat4.identity();
+        keeper_transform = keeper_transform
+            .times(Mat4.translation(0, 3, this.goal_z))
+            .times(Mat4.scale(this.ball_radius, this.ball_radius, this.ball_radius));
+
+        keeper_transform = keeper_transform.times(position_translation);
+        this.shapes.square.draw(context, program_state, keeper_transform, this.materials.keeper);
+
+        let keeper_head_transform = keeper_transform
+            .times(Mat4.scale(1, 1/this.keeper_height, 1))
+            .times(Mat4.translation(0, 3, 0));
+
+        let keeper_head_color = this.player2_color;
+
+        this.shapes.circle.draw(context, program_state, keeper_head_transform,
+        this.materials.target.override({color: keeper_head_color}));
+    }
+
     randomly_place_target(context, program_state) {
 
         let object_type = 'target';
@@ -690,7 +734,7 @@ export class Assignment3 extends Scene {
             // TODO: Single player where you against a moving AI keeper
             //       make robot keeper head magenta
         else if (this.mode === 'single_player_keeper') {
-            // this.move_object('keeper', context, program_state);
+            this.keeper_ai(context, program_state);
             this.ball_object_collision_detection('keeper',2, 3);
             this.update_one_player_score(context, program_state);
         }
