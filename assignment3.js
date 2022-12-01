@@ -26,6 +26,9 @@ export class Assignment3 extends Scene {
             cylinder: new defs.Cylindrical_Tube(10, 20),
         };
 
+
+        this.attached = () => null;
+
         this.ball_radius = 0.8;
         this.keeper_height = 2;
         this.ball_time = 0;
@@ -197,6 +200,12 @@ export class Assignment3 extends Scene {
 
         this.key_triggered_button("Shoot ball", ["Enter"],
             () => {this.shoot_ball = true; this.ball_time = 0; this.ball_time_since_last_bounce = 0; this.have_determined_ball_v0 = false;});
+
+        this.key_triggered_button("Attach to ball", ["Control", "b"],
+            () => this.attached = () => this.ball)
+
+        this.key_triggered_button("Detach from ball", ["Control", "d"],
+            () => this.attached = () => Mat4.inverse(this.initial_camera_location))
 
     }
 
@@ -443,7 +452,7 @@ export class Assignment3 extends Scene {
             this.ball_x_total = this.ball_x_total + this.ball_v0_x*0.5;
             this.ball_z_total = this.ball_z_total + this.ball_v0_z*0.5;
 
-            let air_friction = 0.004;
+            let air_friction = 0.015;
             this.slow_down_ball(air_friction);
             this.slow_down_ball(air_friction);
             // this.ball_v0_x = this.ball_v0_x - (this.ball_v0_x * air_friction);
@@ -467,6 +476,7 @@ export class Assignment3 extends Scene {
 
             this.position['ball'] = vec3(this.ball_x_total, ball_y, -this.ball_z_total);
 
+            this.ball = ball_transform;
             this.shapes.sphere4.draw(context, program_state, ball_transform, this.materials.textured_ball);
             this.ball_time += 0.5;
             this.ball_time_since_last_bounce += 0.5;
@@ -737,6 +747,16 @@ export class Assignment3 extends Scene {
         program_state.projection_transform = Mat4.perspective(
             Math.PI / 4, context.width / context.height, .1, 1000);
 
+
+        if (this.attached() !== null) {
+            let blending_factor = 0.3
+            let desired = Mat4.inverse(this.attached()
+                .times(Mat4.translation(0, 0, 5)));
+            desired = desired.map(
+                (x, i) =>
+                    Vector.from(program_state.camera_inverse[i]).mix(x, blending_factor))
+            program_state.set_camera(desired);
+        }
         const t = program_state.animation_time / 1000, dt = program_state.animation_delta_time / 1000;
 
         let light_position = vec4(5, 2, 0, 1);
