@@ -45,6 +45,7 @@ export class Assignment3 extends Scene {
         this.position = {
             'target': vec3(0, 0, 0),
             'keeper': vec3(0, 0, 0),
+            'ai_keeper': vec3(0, 0, 0),
             'ball_arrow': vec3(0, 0, 0),
             'ball': vec3(0, 0, 0),
         };
@@ -421,6 +422,8 @@ export class Assignment3 extends Scene {
             let ball_initial_position_y = 1;
             let ball_initial_position_z = 8;
 
+            this.ball_y_scale = 0.1*(10/this.goal_height);
+
             if (!this.have_determined_ball_v0) {
                 this.ball_v0_x = ba_x[1];
                 this.ball_v0_y = ba_y[1];
@@ -429,6 +432,12 @@ export class Assignment3 extends Scene {
 
                 this.ball_x_total = ball_initial_position_x;
                 this.ball_z_total = ball_initial_position_z;
+
+                let goal_ball_dist = this.goal_z - ball_initial_position_z;
+
+                this.ball_travel_time = -goal_ball_dist / this.ball_v0_z;
+                this.shot_x = ball_initial_position_x + this.ball_v0_x * this.ball_travel_time;
+                this.shot_y = this.ball_y_scale * (ball_initial_position_y + this.ball_v0_y * this.ball_travel_time);
             }
 
             this.ball_x_total = this.ball_x_total + this.ball_v0_x*0.5;
@@ -446,7 +455,6 @@ export class Assignment3 extends Scene {
             // 0.1 is a good value for a goal_height of 10
             // 0.05 is a good value for a goal_height of 20
             // note that this doesn't allow the ball to hit the top corners but that's a rare case
-            this.ball_y_scale = 0.1*(10/this.goal_height);
             let ball_y = this.ball_v0_y * this.ball_time_since_last_bounce - this.ball_y_scale * this.ball_time_since_last_bounce**2 + (ball_initial_position_y);
 
             ball_transform = ball_transform
@@ -489,14 +497,16 @@ export class Assignment3 extends Scene {
     determine_if_game_over() {
         // if either score is max_score reset scores
         let reset_scores = false;
-        if (this.score['player1'] === this.max_score) {
-            // TODO: say good job player 1 via audio in Fast RMX announcer style
-            alert('Good job player 1');
-            reset_scores = true;
-        } else if (this.score['player2'] === this.max_score) {
-            // TODO: say good job player 2 via audio
-            alert('Good job player 2');
-            reset_scores = true;
+        if (this.mode === 'two_player') {
+            if (this.score['player1'] === this.max_score) {
+                // TODO: say good job player 1 via audio in Fast RMX announcer style
+                alert('Good job player 1');
+                reset_scores = true;
+            } else if (this.score['player2'] === this.max_score) {
+                // TODO: say good job player 2 via audio
+                alert('Good job player 2');
+                reset_scores = true;
+            }
         }
 
         if (reset_scores) {
@@ -541,12 +551,18 @@ export class Assignment3 extends Scene {
             // z is -18 since that's where the goal posts are
             intersects_on_z_axis = Math.floor(ball_pos[2]) === -18;
             this.ball_intersects_goal_on_z_axis = intersects_on_z_axis;
-            this.ball_collision_success = intersects_on_x_axis && intersects_on_y_axis && intersects_on_z_axis
+            this.ball_collision_success = (!intersects_on_x_axis || !intersects_on_y_axis) && intersects_on_z_axis;
         }
 
         if (this.ball_collision_success) {
-            if (this.mode !== 'two_player') {
-                this.duplicate_goal_check_frames = 0;
+            this.duplicate_goal_check_frames = 0;
+            if (this.mode === 'two_player') {
+                if (this.currently_playing['player1']) {
+                    this.score['player1'] += 1;
+                } else {
+                    this.score['player2'] += 1;
+                }
+            } else {
                 this.score['player1'] += 1;
             }
             // TODO: add audio when player scores
@@ -558,18 +574,6 @@ export class Assignment3 extends Scene {
                 a.play();
             });
             */
-        } else if (intersects_on_z_axis && (!intersects_on_y_axis || !intersects_on_x_axis)) {
-            // console.log(object_pos, ball_pos, intersects_on_x_axis, intersects_on_y_axis, intersects_on_z_axis);
-            // The player scores if they don't hit the keeper
-            if (this.mode === 'two_player') {
-                if (this.currently_playing['player1']) {
-                    this.duplicate_goal_check_frames = 0;
-                    this.score['player1'] += 1;
-                } else {
-                    this.duplicate_goal_check_frames = 0;
-                    this.score['player2'] += 1;
-                }
-            }
         }
 
         // even if the player misses still move to the next player
@@ -577,6 +581,70 @@ export class Assignment3 extends Scene {
             this.currently_playing['player1'] = !this.currently_playing['player1'];
             this.currently_playing['player2'] = !this.currently_playing['player2'];
         }
+    }
+
+    keeper_ai(linear, context, program_state) {
+        let pos_x = this.position['ai_keeper'][0];
+        let pos_y = this.position['ai_keeper'][1];
+
+        let dist_x = this.shot_x - pos_x;
+        let dist_y = this.shot_y - pos_y;
+
+        let x_speed = 0.6;
+        let y_speed = 0.05;
+        let eps = 1;
+
+        if (this.shoot_ball) {
+            // Assumption: constant z velocity
+            if (this.ball_time <= this.ball_travel_time) {
+                // Always gets to ball at the same time that ball intersects goal
+                if (linear) {
+                    let t = this.ball_time / this.ball_travel_time;
+                    pos_x += dist_x * t;
+                    pos_y += dist_y * t;
+                }
+
+                // Score-able
+                else if (Math.abs(pos_x - this.shot_x) > eps || Math.abs(pos_y - this.shot_y) > eps) {
+                    if (this.shot_x > pos_x) {
+                        pos_x += x_speed;
+                    }
+                    else if (this.shot_x < pos_x) {
+                        pos_x -= x_speed;
+                    }
+
+                    if (this.shot_y > pos_y) {
+                        pos_y += y_speed;
+                    }
+                    else if (this.shot_y < pos_y) {
+                        pos_y -= y_speed;
+                    }
+
+                }
+            }
+        }
+
+        this.position['ai_keeper'][0] = pos_x;
+        this.position['ai_keeper'][1] = pos_y;
+
+        let position_translation = Mat4.translation(pos_x, pos_y, this.goal_z);
+
+        let keeper_transform = Mat4.identity();
+        keeper_transform = keeper_transform
+            .times(Mat4.translation(0,2, this.goal_z))
+            .times(Mat4.scale(this.ball_radius, this.keeper_height, this.ball_radius))
+            .times(position_translation);
+
+        this.shapes.square.draw(context, program_state, keeper_transform, this.materials.keeper);
+
+        let keeper_head_transform = keeper_transform
+            .times(Mat4.scale(1, 1/this.keeper_height, 1))
+            .times(Mat4.translation(0, 3, 0));
+
+        let keeper_head_color = this.player2_color;
+
+        this.shapes.circle.draw(context, program_state, keeper_head_transform,
+        this.materials.target.override({color: keeper_head_color}));
     }
 
     randomly_place_target(context, program_state) {
@@ -692,25 +760,17 @@ export class Assignment3 extends Scene {
 
         this.ball_field_collision_detection();
 
-
-        // FIXME: fix this so obvious to user what mode they are in
-        //        eg two player is differently colored score
-        //        one player practice is target
-        //        single player keeper is just a keeper
-
-
         // Practice mode where you aim for a randomly placed target
         if (this.mode === 'practice') {
             this.randomly_place_target(context, program_state);
             this.ball_object_collision_detection('target',2, 3);
             this.update_one_player_score(context, program_state);
         }
-            // TODO:
-            // Single player where you against a moving AI keeper
-        // make robot keeper head magenta
+
+        // TODO: make robot keeper head magenta
         else if (this.mode === 'single_player_keeper') {
-            // this.move_object('keeper', context, program_state);
-            this.ball_object_collision_detection('keeper',2, 3);
+            this.keeper_ai(false, context, program_state);
+            this.ball_object_collision_detection('ai_keeper',1, 1.5);
             this.update_one_player_score(context, program_state);
         }
         // Two player mode where one player is goalie and the other player shoots the ball
