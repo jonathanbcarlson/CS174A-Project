@@ -81,6 +81,7 @@ export class Assignment3 extends Scene {
 
         this.player1_color = hex_color("#ff0000");
         this.player2_color = hex_color("#0000ff");
+        this.ai_keeper_color = hex_color('#ff00ff');
 
         // TODO: need to implement single_player_keeper
         this.mode = 'single_player_keeper';
@@ -641,7 +642,7 @@ export class Assignment3 extends Scene {
             .times(Mat4.scale(1, 1/this.keeper_height, 1))
             .times(Mat4.translation(0, 3, 0));
 
-        let keeper_head_color = this.player2_color;
+        let keeper_head_color = this.ai_keeper_color;
 
         this.shapes.circle.draw(context, program_state, keeper_head_transform,
         this.materials.target.override({color: keeper_head_color}));
@@ -767,7 +768,6 @@ export class Assignment3 extends Scene {
             this.update_one_player_score(context, program_state);
         }
 
-        // TODO: make robot keeper head magenta
         else if (this.mode === 'single_player_keeper') {
             this.keeper_ai(false, context, program_state);
             this.ball_object_collision_detection('ai_keeper',1, 1.5);
