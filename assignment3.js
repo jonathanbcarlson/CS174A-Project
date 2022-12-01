@@ -44,6 +44,7 @@ export class Assignment3 extends Scene {
         this.position = {
             'target': vec3(0, 0, 0),
             'keeper': vec3(0, 0, 0),
+            'ai_keeper': vec3(0, 0, 0),
             'ball_arrow': vec3(0, 0, 0),
             'ball': vec3(0, 0, 0),
         };
@@ -420,6 +421,8 @@ export class Assignment3 extends Scene {
             let ball_initial_position_y = 1;
             let ball_initial_position_z = 8;
 
+            this.ball_y_scale = 0.1*(10/this.goal_height);
+
             if (!this.have_determined_ball_v0) {
                 this.ball_v0_x = ba_x[1];
                 this.ball_v0_y = ba_y[1];
@@ -433,7 +436,7 @@ export class Assignment3 extends Scene {
 
                 this.ball_travel_time = -goal_ball_dist / this.ball_v0_z;
                 this.shot_x = ball_initial_position_x + this.ball_v0_x * this.ball_travel_time;
-                this.shot_y = ball_initial_position_y + this.ball_v0_y * this.ball_travel_time;
+                this.shot_y = this.ball_y_scale * (ball_initial_position_y + this.ball_v0_y * this.ball_travel_time);
             }
 
             this.ball_x_total = this.ball_x_total + this.ball_v0_x*0.5;
@@ -451,7 +454,6 @@ export class Assignment3 extends Scene {
             // 0.1 is a good value for a goal_height of 10
             // 0.05 is a good value for a goal_height of 20
             // note that this doesn't allow the ball to hit the top corners but that's a rare case
-            this.ball_y_scale = 0.1*(10/this.goal_height);
             let ball_y = this.ball_v0_y * this.ball_time_since_last_bounce - this.ball_y_scale * this.ball_time_since_last_bounce**2 + (ball_initial_position_y);
 
             ball_transform = ball_transform
@@ -574,32 +576,58 @@ export class Assignment3 extends Scene {
         }
     }
 
-    keeper_ai(context, program_state) {
-        let pos_x = this.position['keeper'][0];
-        let pos_y = this.position['keeper'][1];
+    keeper_ai(linear, context, program_state) {
+        let pos_x = this.position['ai_keeper'][0];
+        let pos_y = this.position['ai_keeper'][1];
+
+        let dist_x = this.shot_x - pos_x;
+        let dist_y = this.shot_y - pos_y;
+
+        let x_speed = 0.6;
+        let y_speed = 0.05;
+        let eps = 1;
 
         if (this.shoot_ball) {
-            let dist_x = this.shot_x - pos_x;
-            let dist_y = this.shot_y - pos_y;
-
             // Assumption: constant z velocity
-            // Always gets to ball at the same time that ball intersects goal
-            // TODO: Change keeper movement to a fixed speed so player can score
             if (this.ball_time <= this.ball_travel_time) {
-                let t = this.ball_time / this.ball_travel_time;
-                pos_x += dist_x * t;
-                pos_y += dist_y * t;
+                // Always gets to ball at the same time that ball intersects goal
+                if (linear) {
+                    let t = this.ball_time / this.ball_travel_time;
+                    pos_x += dist_x * t;
+                    pos_y += dist_y * t;
+                }
+
+                // Score-able
+                else if (Math.abs(pos_x - this.shot_x) > eps || Math.abs(pos_y - this.shot_y) > eps) {
+                    if (this.shot_x > pos_x) {
+                        pos_x += x_speed;
+                    }
+                    else if (this.shot_x < pos_x) {
+                        pos_x -= x_speed;
+                    }
+
+                    if (this.shot_y > pos_y) {
+                        pos_y += y_speed;
+                    }
+                    else if (this.shot_y < pos_y) {
+                        pos_y -= y_speed;
+                    }
+
+                }
             }
         }
+
+        this.position['ai_keeper'][0] = pos_x;
+        this.position['ai_keeper'][1] = pos_y;
 
         let position_translation = Mat4.translation(pos_x, pos_y, this.goal_z);
 
         let keeper_transform = Mat4.identity();
         keeper_transform = keeper_transform
-            .times(Mat4.translation(0, 3, this.goal_z))
-            .times(Mat4.scale(this.ball_radius, this.ball_radius, this.ball_radius));
+            .times(Mat4.translation(0,2, this.goal_z))
+            .times(Mat4.scale(this.ball_radius, this.keeper_height, this.ball_radius))
+            .times(position_translation);
 
-        keeper_transform = keeper_transform.times(position_translation);
         this.shapes.square.draw(context, program_state, keeper_transform, this.materials.keeper);
 
         let keeper_head_transform = keeper_transform
@@ -731,11 +759,11 @@ export class Assignment3 extends Scene {
             this.ball_object_collision_detection('target',2, 3);
             this.update_one_player_score(context, program_state);
         }
-            // TODO: Single player where you against a moving AI keeper
-            //       make robot keeper head magenta
+
+        // TODO: make robot keeper head magenta
         else if (this.mode === 'single_player_keeper') {
-            this.keeper_ai(context, program_state);
-            this.ball_object_collision_detection('keeper',2, 3);
+            this.keeper_ai(false, context, program_state);
+            this.ball_object_collision_detection('ai_keeper',1, 1.5);
             this.update_one_player_score(context, program_state);
         }
         // Two player mode where one player is goalie and the other player shoots the ball
