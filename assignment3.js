@@ -33,7 +33,9 @@ export class Assignment3 extends Scene {
         this.keeper_height = 2;
         this.ball_time = 0;
         this.shoot_ball = false;
-        this.duplicate_goal_check_frames = 3;
+        this.duplicate_goal_check_frames = 8;
+        this.duplicate_goal_check_frames_2 = 8;
+        this.ball_translation_down = -1.3;
 
 
         this.goal_height = 10;
@@ -104,8 +106,10 @@ export class Assignment3 extends Scene {
                 {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#FF0000")}),
             ball_arrow: new Material(new defs.Phong_Shader(),
                 {ambient: 1, diffusivity: 1, specularity: 1}),
-            field: new Material(new defs.Phong_Shader(),
-                {ambient: 0.7, diffusivity: 1, specularity: 1, color: hex_color("#00FF00")}),
+            field: new Material(new Texture_Scroll_X(),
+                {ambient: 0.7, diffusivity: 1, specularity: 1, color: hex_color("#000000"),
+                    texture: new Texture("assets/grass.jpg", "LINEAR_MIPMAP_LINEAR")
+                }),
             goal_post: new Material(new defs.Phong_Shader(),
                 {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#FFFFFF")}),
             // stadium_right is from https://www.flickr.com/photos/ronmacphotos/10628910656
@@ -471,7 +475,8 @@ export class Assignment3 extends Scene {
                 .times(Mat4.scale(this.ball_radius, this.ball_radius, this.ball_radius));
 
             ball_transform = ball_transform
-                .times(Mat4.translation(this.ball_x_total, ball_y, -this.ball_z_total));
+                .times(Mat4.translation(this.ball_x_total, ball_y, -this.ball_z_total))
+                .times(Mat4.translation(0, this.ball_translation_down, 0));
 
 
             this.position['ball'] = vec3(this.ball_x_total, ball_y, -this.ball_z_total);
@@ -525,13 +530,13 @@ export class Assignment3 extends Scene {
     }
 
     ball_object_collision_detection (object, ball_object_x_distance, ball_object_y_distance) {
-        if(this.duplicate_goal_check_frames != 3) {
+        if(this.duplicate_goal_check_frames != 8) {
             this.duplicate_goal_check_frames++;
             return;
         }
         let object_pos = this.position[object];
         let ball_pos = this.position['ball'];
-        let ball_pos_x = ball_pos[0], ball_pos_y = ball_pos[1];
+        let ball_pos_x = ball_pos[0], ball_pos_y = ball_pos[1] + this.ball_translation_down;
         let object_pos_x = object_pos[0], object_pos_y = object_pos[1];
 
         let intersects_on_x_axis = false;
@@ -659,12 +664,30 @@ export class Assignment3 extends Scene {
 
     randomly_place_target(context, program_state) {
 
+        if(this.duplicate_goal_check_frames_2 != 8) {
+            this.duplicate_goal_check_frames_2++;
+
+            let object_type = 'target';
+            let position_translation = Mat4.translation(this.position[object_type][0],
+                this.position[object_type][1], this.position[object_type][2]);
+
+            let object_transform = Mat4.identity();
+            object_transform = object_transform
+                .times(Mat4.translation(0, 3, this.goal_z))
+                .times(Mat4.scale(this.ball_radius, this.ball_radius, this.ball_radius));
+
+            object_transform = object_transform.times(position_translation);
+            this.shapes.circle.draw(context, program_state, object_transform, this.materials.target);
+            return;
+        }
+
         let object_type = 'target';
 
         // TODO: determine if we should move target randomly every time
         //       even if they miss (this.ball_intersects_goal_on_z_axis)
         //       OR just move target if they get a collision (this.ball_collision_success)
         if (this.ball_intersects_goal_on_z_axis) {
+            this.duplicate_goal_check_frames_2 = 0;
             let lower_boundary = {0: (-this.goal_width / 2) - 1, 1: -2};
             let upper_boundary = {0: (this.goal_width / 2) + 1, 1: (this.goal_height / 2) + 2};
 
