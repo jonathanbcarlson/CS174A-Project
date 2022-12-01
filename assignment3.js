@@ -30,6 +30,7 @@ export class Assignment3 extends Scene {
         this.keeper_height = 2;
         this.ball_time = 0;
         this.shoot_ball = false;
+        this.duplicate_goal_check_frames = 3;
 
 
         this.goal_height = 10;
@@ -112,7 +113,7 @@ export class Assignment3 extends Scene {
                 ambient: 1, diffusivity: 0, specularity: 0,
                 texture: new Texture("assets/text.png")
             }),
-            keeper: new Material(new defs.Textured_Phong(1), {
+            keeper: new Material(new defs.Phong_Shader(1), {
                 ambient: 1, diffusivity: 0, specularity: 0, color: hex_color("#ffff00")
             }),
         }
@@ -455,6 +456,7 @@ export class Assignment3 extends Scene {
             ball_transform = ball_transform
                 .times(Mat4.translation(this.ball_x_total, ball_y, -this.ball_z_total));
 
+
             this.position['ball'] = vec3(this.ball_x_total, ball_y, -this.ball_z_total);
 
             this.shapes.sphere4.draw(context, program_state, ball_transform, this.materials.textured_ball);
@@ -503,6 +505,10 @@ export class Assignment3 extends Scene {
     }
 
     ball_object_collision_detection (object, ball_object_x_distance, ball_object_y_distance) {
+        if(this.duplicate_goal_check_frames != 3) {
+            this.duplicate_goal_check_frames++;
+            return;
+        }
         let object_pos = this.position[object];
         let ball_pos = this.position['ball'];
         let ball_pos_x = ball_pos[0], ball_pos_y = ball_pos[1];
@@ -540,6 +546,7 @@ export class Assignment3 extends Scene {
 
         if (this.ball_collision_success) {
             if (this.mode !== 'two_player') {
+                this.duplicate_goal_check_frames = 0;
                 this.score['player1'] += 1;
             }
             // TODO: add audio when player scores
@@ -556,8 +563,10 @@ export class Assignment3 extends Scene {
             // The player scores if they don't hit the keeper
             if (this.mode === 'two_player') {
                 if (this.currently_playing['player1']) {
+                    this.duplicate_goal_check_frames = 0;
                     this.score['player1'] += 1;
                 } else {
+                    this.duplicate_goal_check_frames = 0;
                     this.score['player2'] += 1;
                 }
             }
@@ -666,7 +675,7 @@ export class Assignment3 extends Scene {
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 3)];
 
         let field_transform = Mat4.identity();
-        let field_dim = 100;
+        let field_dim = 20;
         field_transform = field_transform
             .times(Mat4.scale(field_dim,field_dim,field_dim))
             .times(Mat4.rotation(Math.PI/2, 1, 0, 0));
