@@ -83,7 +83,6 @@ export class Assignment3 extends Scene {
         this.player2_color = hex_color("#0000ff");
         this.ai_keeper_color = hex_color('#ff00ff');
 
-        // TODO: need to implement single_player_keeper
         this.mode = 'single_player_keeper';
         // init to be compatible with mode
         this.button_description = 'Move Keeper';
@@ -103,14 +102,14 @@ export class Assignment3 extends Scene {
             ball_arrow: new Material(new defs.Phong_Shader(),
                 {ambient: 1, diffusivity: 1, specularity: 1}),
             field: new Material(new defs.Phong_Shader(),
-                {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#00FF00")}),
+                {ambient: 0.7, diffusivity: 1, specularity: 1, color: hex_color("#00FF00")}),
             goal_post: new Material(new defs.Phong_Shader(),
                 {ambient: 1, diffusivity: 1, specularity: 1, color: hex_color("#FFFFFF")}),
             // stadium_right is from https://www.flickr.com/photos/ronmacphotos/10628910656
             // and is creative commons 2.0
-            stadium_right: new Material(bump, {ambient: .5, texture: new Texture("assets/stadium_right.png")}),
-            stadium_behind: new Material(bump, {ambient: .5, texture: new Texture("assets/stadium_behind.png")}),
-            stadium_left: new Material(bump, {ambient: .5, texture: new Texture("assets/stadium_left.png")}),
+            stadium_right: new Material(bump, {ambient: 1, texture: new Texture("assets/stadium_right.png")}),
+            stadium_behind: new Material(bump, {ambient: 1, texture: new Texture("assets/stadium_behind.png")}),
+            stadium_left: new Material(bump, {ambient: 1, texture: new Texture("assets/stadium_left.png")}),
             score: new Material(new defs.Textured_Phong(1), {
                 ambient: 1, diffusivity: 0, specularity: 0,
                 texture: new Texture("assets/text.png")
@@ -744,7 +743,7 @@ export class Assignment3 extends Scene {
         program_state.lights = [new Light(light_position, color(1, 1, 1, 1), 3)];
 
         let field_transform = Mat4.identity();
-        let field_dim = 20;
+        let field_dim = 30;
         field_transform = field_transform
             .times(Mat4.scale(field_dim,field_dim,field_dim))
             .times(Mat4.rotation(Math.PI/2, 1, 0, 0));
